@@ -1,36 +1,100 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LanSu WikiView
 
-## Getting Started
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react" alt="React" />
+  <img src="https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Tailwind_CSS-4-38bdf8?style=for-the-badge&logo=tailwindcss" alt="Tailwind" />
+  <img src="https://img.shields.io/badge/Deploy-Vercel-black?style=for-the-badge&logo=vercel" alt="Vercel" />
+  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
+</p>
 
-First, run the development server:
+<p align="center">
+  <strong>Transform any GitHub wiki repository into a beautiful, visual reading experience.</strong>
+</p>
+
+<p align="center">
+  Input a GitHub repo URL &rarr; Instantly render a premium wiki reader with knowledge graphs, search, and enhanced navigation.
+</p>
+
+---
+
+## Features
+
+- **Universal GitHub Support** — Works with any public GitHub repository containing Markdown files
+- **Knowledge Graph** — Interactive D3 force-directed graph visualizing page relationships
+- **Full-Text Search** — `Cmd+K` instant search across all page titles, tags, and content
+- **Mermaid Diagrams** — Auto-renders `mermaid` code blocks into interactive charts
+- **ASCII Diagram Detection** — Detects ASCII art flowcharts/architecture diagrams and enhances them with special styling
+- **Frontmatter Badges** — Displays type, dates, and tags from YAML frontmatter as colored badges
+- **Wiki Link Navigation** — `[[double-bracket]]` links are clickable and navigate within the viewer
+- **Table of Contents** — Auto-generated right-side TOC with scroll-tracking highlights
+- **Reading Progress** — Top gradient progress bar tracks scroll position
+- **Responsive Design** — Mobile-first with collapsible sidebar drawer
+- **Relative Path Resolution** — Images and internal links resolve correctly for any repo structure
+
+## Quick Start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+# Clone
+git clone https://github.com/cclank/lansu-wiki-web.git
+cd lansu-wiki-web
+
+# Install
+pnpm install
+
+# Dev
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) and enter any GitHub repo URL.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy to Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/cclank/lansu-wiki-web)
 
-## Learn More
+Zero-config deployment. Optionally add `GITHUB_TOKEN` environment variable to increase API rate limits.
 
-To learn more about Next.js, take a look at the following resources:
+## Tech Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript 5 |
+| Styling | Tailwind CSS 4 |
+| Markdown | react-markdown + remark-gfm + rehype-highlight |
+| Diagrams | Mermaid 11 + D3.js 7 |
+| Icons | Lucide React |
+| Deployment | Vercel |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
 
-## Deploy on Vercel
+```
+src/
+  app/
+    page.tsx                    # Landing page with URL input
+    api/wiki/route.ts           # GitHub API proxy
+    wiki/[owner]/[repo]/page.tsx # Wiki viewer
+  components/
+    Sidebar.tsx                 # Category navigation
+    MarkdownContent.tsx         # Markdown renderer + diagram detection
+    MermaidBlock.tsx             # Mermaid diagram renderer
+    TableOfContents.tsx         # Scroll-tracking TOC
+    KnowledgeGraph.tsx          # D3 force graph
+    SearchDialog.tsx            # Full-text search modal
+  lib/
+    github.ts                   # GitHub API + wiki data builder
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Supported Repo Formats
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Works out-of-the-box with:
+
+- Wiki-style knowledge bases (Obsidian, GitBook, etc.)
+- Awesome lists (awesome-python, awesome-go, etc.)
+- Documentation repos (system-design-primer, etc.)
+- Any repo with `.md` files in any directory structure
+
+## License
+
+MIT
