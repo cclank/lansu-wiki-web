@@ -27,7 +27,7 @@ type ViewMode = "read" | "cosmos" | "mindmap" | "stats";
 
 const VIEW_MODES: { key: ViewMode; label: string; icon: typeof BookOpen; activeClass: string }[] = [
   { key: "read", label: "阅读", icon: BookOpen, activeClass: "bg-accent-blue/10 text-accent-blue" },
-  { key: "cosmos", label: "3D 图谱", icon: Globe, activeClass: "bg-accent-purple/10 text-accent-purple" },
+  { key: "cosmos", label: "关系图", icon: Globe, activeClass: "bg-accent-purple/10 text-accent-purple" },
   { key: "mindmap", label: "脑图", icon: Brain, activeClass: "bg-accent-cyan/10 text-accent-cyan" },
   { key: "stats", label: "统计", icon: BarChart3, activeClass: "bg-accent-emerald/10 text-accent-emerald" },
 ];

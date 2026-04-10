@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
+import * as d3 from "d3";
 import type { GraphNode, GraphLink } from "@/lib/github";
 
-interface CosmosGraphProps {
+interface RelationGraphProps {
   nodes: GraphNode[];
   links: GraphLink[];
   activeSlug: string | null;
@@ -20,209 +21,434 @@ const CATEGORY_COLORS: Record<string, string> = {
   api: "#f43f5e",
 };
 
-export default function CosmosGraph({
+interface SimNode extends d3.SimulationNodeDatum {
+  id: string;
+  title: string;
+  category: string;
+  linkCount: number;
+}
+interface SimLink extends d3.SimulationLinkDatum<SimNode> {
+  source: SimNode | string;
+  target: SimNode | string;
+}
+
+export default function RelationGraph({
   nodes,
   links,
   activeSlug,
   onSelect,
-}: CosmosGraphProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const graphRef = useRef<any>(null);
+}: RelationGraphProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const simRef = useRef<d3.Simulation<SimNode, SimLink> | null>(null);
+  const nodesRef = useRef<SimNode[]>([]);
+  const linksRef = useRef<SimLink[]>([]);
+  const transformRef = useRef(d3.zoomIdentity);
+  const frameRef = useRef(0);
+  const animFrameRef = useRef(0);
 
-  const initGraph = useCallback(async () => {
-    const container = containerRef.current;
-    if (!container || nodes.length === 0) return;
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    // Dynamic import for SSR safety
-    const ForceGraph3DModule = await import("3d-force-graph");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ForceGraph3D = ForceGraph3DModule.default as any;
-    const THREE = await import("three");
+    frameRef.current++;
+    const frame = frameRef.current;
+    const dpr = window.devicePixelRatio || 1;
+    const width = canvas.width / dpr;
+    const height = canvas.height / dpr;
+    const t = transformRef.current;
 
-    // Clear previous
-    if (graphRef.current) {
-      graphRef.current._destructor?.();
-      container.innerHTML = "";
-    }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.scale(dpr, dpr);
 
-    const width = container.clientWidth;
-    const height = container.clientHeight;
-
-    const graphData = {
-      nodes: nodes.map((n) => ({
-        id: n.id,
-        title: n.title,
-        category: n.category,
-        linkCount: n.linkCount,
-        isActive: n.id === activeSlug,
-      })),
-      links: links.map((l) => ({ source: l.source, target: l.target })),
-    };
-
-    const graph = ForceGraph3D()(container)
-      .width(width)
-      .height(height)
-      .graphData(graphData)
-      .backgroundColor("#0a0b0e")
-      // Node styling
-      .nodeThreeObject((node: Record<string, unknown>) => {
-        const category = node.category as string;
-        const linkCount = node.linkCount as number;
-        const isActive = node.isActive as boolean;
-        const color = CATEGORY_COLORS[category] || "#3b82f6";
-        const size = 3 + Math.min(linkCount * 1.5, 12);
-
-        const group = new THREE.Group();
-
-        // Core sphere
-        const geometry = new THREE.SphereGeometry(size, 24, 24);
-        const material = new THREE.MeshPhongMaterial({
-          color: new THREE.Color(color),
-          emissive: new THREE.Color(color),
-          emissiveIntensity: isActive ? 0.8 : 0.3,
-          transparent: true,
-          opacity: isActive ? 1 : 0.85,
-        });
-        const sphere = new THREE.Mesh(geometry, material);
-        group.add(sphere);
-
-        // Glow ring for active node
-        if (isActive) {
-          const ringGeo = new THREE.RingGeometry(size + 2, size + 4, 32);
-          const ringMat = new THREE.MeshBasicMaterial({
-            color: new THREE.Color(color),
-            transparent: true,
-            opacity: 0.4,
-            side: THREE.DoubleSide,
-          });
-          const ring = new THREE.Mesh(ringGeo, ringMat);
-          group.add(ring);
-        }
-
-        // Outer glow sphere
-        const glowGeo = new THREE.SphereGeometry(size * 1.6, 16, 16);
-        const glowMat = new THREE.MeshBasicMaterial({
-          color: new THREE.Color(color),
-          transparent: true,
-          opacity: isActive ? 0.15 : 0.06,
-        });
-        const glow = new THREE.Mesh(glowGeo, glowMat);
-        group.add(glow);
-
-        return group;
-      })
-      // Labels
-      .nodeLabel(
-        (node: Record<string, unknown>) =>
-          `<div style="background:rgba(10,11,14,0.9);color:#e8eaed;padding:6px 12px;border-radius:8px;font-size:13px;border:1px solid #374151;backdrop-filter:blur(8px)">
-            <strong>${node.title}</strong><br/>
-            <span style="color:#9aa0b0;font-size:11px">${node.category} · ${node.linkCount} links</span>
-          </div>`
-      )
-      // Link styling
-      .linkColor(() => "rgba(100, 116, 139, 0.2)")
-      .linkWidth(0.5)
-      .linkDirectionalParticles(2)
-      .linkDirectionalParticleWidth(1.5)
-      .linkDirectionalParticleSpeed(0.005)
-      .linkDirectionalParticleColor(
-        (link: Record<string, unknown>) => {
-          const sourceNode = link.source as Record<string, unknown>;
-          const category = sourceNode?.category as string;
-          return CATEGORY_COLORS[category] || "#3b82f6";
-        }
-      )
-      // Interaction
-      .onNodeClick((node: Record<string, unknown>) => {
-        const id = node.id as string;
-        onSelect(id);
-
-        // Camera fly-to animation
-        const distance = 120;
-        const pos = node as { x?: number; y?: number; z?: number };
-        const distRatio =
-          1 +
-          distance /
-            Math.hypot(pos.x ?? 0, pos.y ?? 0, pos.z ?? 0);
-
-        graph.cameraPosition(
-          {
-            x: (pos.x ?? 0) * distRatio,
-            y: (pos.y ?? 0) * distRatio,
-            z: (pos.z ?? 0) * distRatio,
-          },
-          { x: pos.x ?? 0, y: pos.y ?? 0, z: pos.z ?? 0 },
-          1500
-        );
-      })
-      .onNodeHover((node: Record<string, unknown> | null) => {
-        container.style.cursor = node ? "pointer" : "default";
-      })
-      // Force config
-      .d3AlphaDecay(0.02)
-      .d3VelocityDecay(0.3);
-
-    // Add lights
-    const scene = graph.scene();
-    const ambientLight = new THREE.AmbientLight(0x404060, 2);
-    scene.add(ambientLight);
-    const pointLight = new THREE.PointLight(0x3b82f6, 1, 1000);
-    pointLight.position.set(100, 100, 100);
-    scene.add(pointLight);
-    const pointLight2 = new THREE.PointLight(0x8b5cf6, 0.5, 1000);
-    pointLight2.position.set(-100, -50, -100);
-    scene.add(pointLight2);
-
-    // Auto-rotate camera
-    let angle = 0;
-    const radius = 350;
-    const controls = graph.controls();
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.5;
-
-    graphRef.current = graph;
-
-    // Fit to view after stabilization
-    setTimeout(() => {
-      graph.zoomToFit(1000, 50);
-    }, 2000);
-
-    return () => {
-      graph._destructor?.();
-    };
-  }, [nodes, links, activeSlug, onSelect]);
-
-  useEffect(() => {
-    const cleanup = initGraph();
-    return () => {
-      cleanup?.then((fn) => fn?.());
-    };
-  }, [initGraph]);
-
-  // Handle resize
-  useEffect(() => {
-    function handleResize() {
-      if (graphRef.current && containerRef.current) {
-        graphRef.current
-          .width(containerRef.current.clientWidth)
-          .height(containerRef.current.clientHeight);
+    // Subtle dot grid background
+    const gridSize = 30;
+    ctx.fillStyle = "rgba(55, 65, 81, 0.15)";
+    for (let gx = gridSize; gx < width; gx += gridSize) {
+      for (let gy = gridSize; gy < height; gy += gridSize) {
+        ctx.beginPath();
+        ctx.arc(gx, gy, 0.5, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
+
+    ctx.translate(t.x, t.y);
+    ctx.scale(t.k, t.k);
+
+    const simNodes = nodesRef.current;
+    const simLinks = linksRef.current;
+    const highlightedId = hovered || activeSlug;
+
+    // Build neighbor set
+    const neighbors = new Set<string>();
+    const highlightLinks = new Set<number>();
+    if (highlightedId) {
+      neighbors.add(highlightedId);
+      simLinks.forEach((l, i) => {
+        const src = (l.source as SimNode).id;
+        const tgt = (l.target as SimNode).id;
+        if (src === highlightedId || tgt === highlightedId) {
+          neighbors.add(src);
+          neighbors.add(tgt);
+          highlightLinks.add(i);
+        }
+      });
+    }
+
+    // Draw links
+    simLinks.forEach((l, i) => {
+      const src = l.source as SimNode;
+      const tgt = l.target as SimNode;
+      if (src.x == null || tgt.x == null) return;
+
+      const isHighlight = highlightLinks.has(i);
+
+      if (isHighlight) {
+        const color = CATEGORY_COLORS[src.category] || "#3b82f6";
+
+        // Glow line
+        ctx.beginPath();
+        ctx.moveTo(src.x, src.y!);
+        ctx.lineTo(tgt.x, tgt.y!);
+        ctx.strokeStyle = color + "30";
+        ctx.lineWidth = 6;
+        ctx.stroke();
+
+        // Gradient line
+        const grad = ctx.createLinearGradient(src.x, src.y!, tgt.x, tgt.y!);
+        grad.addColorStop(0, color);
+        grad.addColorStop(1, color + "60");
+        ctx.beginPath();
+        ctx.moveTo(src.x, src.y!);
+        ctx.lineTo(tgt.x, tgt.y!);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Animated particle along the link
+        const progress = ((frame * 2 + i * 37) % 200) / 200;
+        const px = src.x + (tgt.x - src.x) * progress;
+        const py = src.y! + (tgt.y! - src.y!) * progress;
+        ctx.beginPath();
+        ctx.arc(px, py, 3, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        // Second particle offset
+        const p2 = ((frame * 2 + i * 37 + 100) % 200) / 200;
+        const px2 = src.x + (tgt.x - src.x) * p2;
+        const py2 = src.y! + (tgt.y! - src.y!) * p2;
+        ctx.beginPath();
+        ctx.arc(px2, py2, 2, 0, Math.PI * 2);
+        ctx.fillStyle = color + "80";
+        ctx.fill();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(src.x, src.y!);
+        ctx.lineTo(tgt.x, tgt.y!);
+        ctx.strokeStyle = highlightedId
+          ? "rgba(55, 65, 81, 0.08)"
+          : "rgba(55, 65, 81, 0.2)";
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+    });
+
+    // Draw nodes
+    simNodes.forEach((node) => {
+      if (node.x == null || node.y == null) return;
+
+      const color = CATEGORY_COLORS[node.category] || "#3b82f6";
+      const isActive = node.id === activeSlug;
+      const isHover = node.id === hovered;
+      const isNeighbor = neighbors.has(node.id);
+      const dimmed = highlightedId && !isNeighbor;
+      const radius = 5 + Math.min(node.linkCount * 1.2, 10);
+
+      // Outer glow for active/hover
+      if (isActive || isHover) {
+        const pulseR = radius + 10 + Math.sin(frame * 0.06) * 4;
+        const glowGrad = ctx.createRadialGradient(
+          node.x, node.y, radius,
+          node.x, node.y, pulseR
+        );
+        glowGrad.addColorStop(0, color + "40");
+        glowGrad.addColorStop(1, color + "00");
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, pulseR, 0, Math.PI * 2);
+        ctx.fillStyle = glowGrad;
+        ctx.fill();
+      }
+
+      // Circle with gradient fill
+      const nodeGrad = ctx.createRadialGradient(
+        node.x - radius * 0.3, node.y - radius * 0.3, 0,
+        node.x, node.y, radius
+      );
+      if (dimmed) {
+        nodeGrad.addColorStop(0, color + "40");
+        nodeGrad.addColorStop(1, color + "20");
+      } else {
+        nodeGrad.addColorStop(0, color);
+        nodeGrad.addColorStop(1, color + "cc");
+      }
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = nodeGrad;
+      ctx.fill();
+
+      // Ring for active
+      if (isActive) {
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      } else if (isHover) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // Label
+      const fontSize = isHover || isActive ? 13 : t.k > 0.5 ? 11 : t.k > 0.35 ? 9 : 0;
+      if (fontSize > 0) {
+        const label =
+          node.title.length > 24 ? node.title.slice(0, 22) + "…" : node.title;
+        ctx.font = `${isActive || isHover ? "600" : "400"} ${fontSize}px system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+
+        // Text shadow for readability
+        if (!dimmed) {
+          ctx.fillStyle = "rgba(10, 11, 14, 0.7)";
+          ctx.fillText(label, node.x + 0.5, node.y + radius + 5.5);
+        }
+
+        ctx.fillStyle = dimmed
+          ? "rgba(154, 160, 176, 0.2)"
+          : isActive || isHover
+            ? "#e8eaed"
+            : "rgba(154, 160, 176, 0.8)";
+        ctx.fillText(label, node.x, node.y + radius + 5);
+      }
+    });
+
+    // Hover tooltip card
+    if (hovered) {
+      const node = simNodes.find((n) => n.id === hovered);
+      if (node && node.x != null && node.y != null) {
+        const color = CATEGORY_COLORS[node.category] || "#3b82f6";
+        const title = node.title;
+        const sub = `${node.category} · ${node.linkCount} 条链接`;
+        ctx.font = "600 13px system-ui, sans-serif";
+        const tw = ctx.measureText(title).width;
+        ctx.font = "400 11px system-ui, sans-serif";
+        const sw = ctx.measureText(sub).width;
+        const boxW = Math.max(tw, sw) + 28;
+        const boxH = 52;
+        const bx = node.x - boxW / 2;
+        const by = node.y - 24 - boxH;
+
+        // Shadow
+        ctx.shadowColor = "rgba(0,0,0,0.4)";
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = "rgba(10, 11, 14, 0.94)";
+        ctx.beginPath();
+        ctx.roundRect(bx, by, boxW, boxH, 10);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Top color accent bar
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, boxW, 3, [10, 10, 0, 0]);
+        ctx.fill();
+
+        // Border
+        ctx.strokeStyle = "rgba(55, 65, 81, 0.5)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, boxW, boxH, 10);
+        ctx.stroke();
+
+        // Text
+        ctx.font = "600 13px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#e8eaed";
+        ctx.fillText(title, node.x, by + 18);
+        ctx.font = "400 11px system-ui, sans-serif";
+        ctx.fillStyle = "#9aa0b0";
+        ctx.fillText(sub, node.x, by + 35);
+      }
+    }
+
+    ctx.restore();
+  }, [activeSlug, hovered]);
+
+  // Animation loop for particles
+  useEffect(() => {
+    let running = true;
+    function animate() {
+      if (!running) return;
+      draw();
+      animFrameRef.current = requestAnimationFrame(animate);
+    }
+    // Only animate when something is highlighted
+    if (hovered || activeSlug) {
+      animate();
+    } else {
+      draw();
+    }
+    return () => {
+      running = false;
+      cancelAnimationFrame(animFrameRef.current);
+    };
+  }, [draw, hovered, activeSlug]);
+
+  // Init simulation
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || nodes.length === 0) return;
+
+    const container = canvas.parentElement!;
+    const dpr = window.devicePixelRatio || 1;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+
+    const simNodes: SimNode[] = nodes.map((n) => ({ ...n }));
+    const simLinks: SimLink[] = links.map((l) => ({
+      source: l.source,
+      target: l.target,
+    }));
+
+    nodesRef.current = simNodes;
+    linksRef.current = simLinks;
+
+    const sim = d3
+      .forceSimulation(simNodes)
+      .force(
+        "link",
+        d3
+          .forceLink<SimNode, SimLink>(simLinks)
+          .id((d) => d.id)
+          .distance(110)
+      )
+      .force("charge", d3.forceManyBody().strength(-350))
+      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("collision", d3.forceCollide().radius(40))
+      .on("tick", draw);
+
+    simRef.current = sim;
+
+    // Zoom
+    const zoom = d3
+      .zoom<HTMLCanvasElement, unknown>()
+      .scaleExtent([0.15, 4])
+      .on("zoom", (event) => {
+        transformRef.current = event.transform;
+        draw();
+      });
+
+    const sel = d3.select(canvas);
+    (sel as d3.Selection<HTMLCanvasElement, unknown, null, undefined>).call(
+      zoom as unknown as (
+        s: d3.Selection<HTMLCanvasElement, unknown, null, undefined>
+      ) => void
+    );
+
+    // Auto-fit after stabilization
+    setTimeout(() => {
+      const padding = 80;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const n of simNodes) {
+        if (n.x != null && n.y != null) {
+          minX = Math.min(minX, n.x);
+          minY = Math.min(minY, n.y);
+          maxX = Math.max(maxX, n.x);
+          maxY = Math.max(maxY, n.y);
+        }
+      }
+      if (minX < Infinity) {
+        const gw = maxX - minX + padding * 2;
+        const gh = maxY - minY + padding * 2;
+        const scale = Math.min(width / gw, height / gh, 1.2);
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        const transform = d3.zoomIdentity
+          .translate(width / 2, height / 2)
+          .scale(scale)
+          .translate(-cx, -cy);
+        (sel as d3.Selection<HTMLCanvasElement, unknown, null, undefined>)
+          .transition()
+          .duration(800)
+          .call(
+            (zoom as unknown as d3.ZoomBehavior<HTMLCanvasElement, unknown>).transform,
+            transform
+          );
+      }
+    }, 2000);
+
+    // Mouse interactions
+    function getNodeAtPos(mx: number, my: number): SimNode | null {
+      const t = transformRef.current;
+      const x = (mx - t.x) / t.k;
+      const y = (my - t.y) / t.k;
+      for (let i = simNodes.length - 1; i >= 0; i--) {
+        const n = simNodes[i];
+        if (n.x == null || n.y == null) continue;
+        const r = 5 + Math.min(n.linkCount * 1.2, 10) + 6;
+        if ((n.x - x) ** 2 + (n.y! - y) ** 2 < r * r) return n;
+      }
+      return null;
+    }
+
+    canvas.addEventListener("mousemove", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const node = getNodeAtPos(e.clientX - rect.left, e.clientY - rect.top);
+      setHovered(node?.id ?? null);
+      canvas.style.cursor = node ? "pointer" : "grab";
+    });
+
+    canvas.addEventListener("click", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const node = getNodeAtPos(e.clientX - rect.left, e.clientY - rect.top);
+      if (node) onSelect(node.id);
+    });
+
+    function handleResize() {
+      if (!canvas) return;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
+      sim.force("center", d3.forceCenter(w / 2, h / 2));
+      sim.alpha(0.1).restart();
+    }
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+
+    return () => {
+      sim.stop();
+      cancelAnimationFrame(animFrameRef.current);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [nodes, links, onSelect, draw]);
 
   return (
-    <div className="relative w-full h-full min-h-[500px]">
-      <div ref={containerRef} className="w-full h-full rounded-xl overflow-hidden" />
+    <div className="relative w-full h-full min-h-[500px] bg-bg-primary rounded-xl border border-border-primary overflow-hidden">
+      <canvas ref={canvasRef} className="w-full h-full" />
 
       {/* Legend */}
       <div className="absolute bottom-4 left-4 bg-bg-primary/80 backdrop-blur-md border border-border-primary rounded-xl p-3 space-y-1.5">
         {Object.entries(CATEGORY_COLORS)
-          .filter(([cat]) =>
-            nodes.some((n) => n.category === cat)
-          )
+          .filter(([cat]) => nodes.some((n) => n.category === cat))
           .map(([cat, color]) => (
             <div key={cat} className="flex items-center gap-2 text-xs">
               <div
@@ -234,11 +460,9 @@ export default function CosmosGraph({
           ))}
       </div>
 
-      {/* Controls hint */}
-      <div className="absolute top-4 right-4 bg-bg-primary/80 backdrop-blur-md border border-border-primary rounded-xl px-3 py-2 text-xs text-text-tertiary space-y-0.5">
-        <div>🖱 拖拽旋转</div>
-        <div>🔍 滚轮缩放</div>
-        <div>👆 点击节点飞入</div>
+      {/* Hint */}
+      <div className="absolute top-4 right-4 bg-bg-primary/80 backdrop-blur-md border border-border-primary rounded-xl px-3 py-2 text-xs text-text-tertiary">
+        悬停高亮关联 · 点击跳转 · 滚轮缩放
       </div>
     </div>
   );
