@@ -4,22 +4,33 @@ import { useEffect, useState, useMemo, useCallback, use } from "react";
 import {
   BookOpen,
   Search,
-  Network,
   ArrowLeft,
   Loader2,
   AlertCircle,
   Menu,
   X,
+  Globe,
+  Brain,
+  BarChart3,
 } from "lucide-react";
 import type { WikiData } from "@/lib/github";
 import Sidebar from "@/components/Sidebar";
 import MarkdownContent from "@/components/MarkdownContent";
 import TableOfContents from "@/components/TableOfContents";
-import KnowledgeGraph from "@/components/KnowledgeGraph";
+import CosmosGraph from "@/components/CosmosGraph";
+import MindMap from "@/components/MindMap";
+import StatsView from "@/components/StatsView";
 import SearchDialog from "@/components/SearchDialog";
 import Link from "next/link";
 
-type ViewMode = "read" | "graph";
+type ViewMode = "read" | "cosmos" | "mindmap" | "stats";
+
+const VIEW_MODES: { key: ViewMode; label: string; icon: typeof BookOpen; activeClass: string }[] = [
+  { key: "read", label: "阅读", icon: BookOpen, activeClass: "bg-accent-blue/10 text-accent-blue" },
+  { key: "cosmos", label: "3D 图谱", icon: Globe, activeClass: "bg-accent-purple/10 text-accent-purple" },
+  { key: "mindmap", label: "脑图", icon: Brain, activeClass: "bg-accent-cyan/10 text-accent-cyan" },
+  { key: "stats", label: "统计", icon: BarChart3, activeClass: "bg-accent-emerald/10 text-accent-emerald" },
+];
 
 export default function WikiPage({
   params,
@@ -52,7 +63,6 @@ export default function WikiPage({
         const wikiData: WikiData = await res.json();
         setData(wikiData);
 
-        // Auto-select first page (prefer README/index, then first page)
         const readmePage = wikiData.pages.find(
           (p) =>
             p.path.toLowerCase() === "readme.md" ||
@@ -118,20 +128,22 @@ export default function WikiPage({
     setActiveSlug(slug);
     setViewMode("read");
     setSidebarOpen(false);
-    // Scroll to top
     document.getElementById("wiki-content-area")?.scrollTo(0, 0);
   }, []);
 
-  // Loading state
+  const handleGraphSelect = useCallback((slug: string) => {
+    setActiveSlug(slug);
+  }, []);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 gap-4">
         <Loader2 className="w-8 h-8 text-accent-blue animate-spin" />
         <p className="text-text-secondary text-sm">
-          正在加载 {owner}/{repo} ...
+          {"正在加载 " + owner + "/" + repo + " ..."}
         </p>
         <div className="flex gap-2 mt-4">
-          {[...Array(3)].map((_, i) => (
+          {[0, 1, 2].map((i) => (
             <div
               key={i}
               className="skeleton w-24 h-3"
@@ -143,7 +155,6 @@ export default function WikiPage({
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 gap-4">
@@ -164,6 +175,8 @@ export default function WikiPage({
 
   if (!data) return null;
 
+  const showSidebar = viewMode === "read" || viewMode === "mindmap";
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {/* Reading progress */}
@@ -176,17 +189,14 @@ export default function WikiPage({
 
       {/* Header */}
       <header className="shrink-0 h-14 bg-bg-secondary/80 backdrop-blur-md border-b border-border-primary flex items-center px-4 gap-3 z-20">
-        {/* Mobile menu toggle */}
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="lg:hidden p-2 rounded-lg hover:bg-bg-hover text-text-secondary transition-colors cursor-pointer"
-        >
-          {sidebarOpen ? (
-            <X className="w-5 h-5" />
-          ) : (
-            <Menu className="w-5 h-5" />
-          )}
-        </button>
+        {showSidebar && (
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="lg:hidden p-2 rounded-lg hover:bg-bg-hover text-text-secondary transition-colors cursor-pointer"
+          >
+            {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        )}
 
         <Link
           href="/"
@@ -199,13 +209,12 @@ export default function WikiPage({
           <span className="text-sm font-medium text-text-primary">
             {owner}/{repo}
           </span>
-          <span className="text-xs text-text-tertiary">
-            · {data.pages.length} 页
+          <span className="text-xs text-text-tertiary hidden sm:inline">
+            {"· " + data.pages.length + " 页"}
           </span>
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          {/* Search trigger */}
           <button
             onClick={() => setSearchOpen(true)}
             className="flex items-center gap-2 px-3 py-1.5 bg-bg-tertiary border border-border-primary rounded-lg text-sm text-text-tertiary hover:text-text-secondary hover:border-border-secondary transition-colors cursor-pointer"
@@ -217,30 +226,23 @@ export default function WikiPage({
             </kbd>
           </button>
 
-          {/* View mode toggle */}
+          {/* View mode toggle — 4 modes */}
           <div className="flex items-center bg-bg-tertiary border border-border-primary rounded-lg overflow-hidden">
-            <button
-              onClick={() => setViewMode("read")}
-              className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors cursor-pointer ${
-                viewMode === "read"
-                  ? "bg-accent-blue/10 text-accent-blue"
-                  : "text-text-tertiary hover:text-text-secondary"
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">阅读</span>
-            </button>
-            <button
-              onClick={() => setViewMode("graph")}
-              className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors cursor-pointer ${
-                viewMode === "graph"
-                  ? "bg-accent-purple/10 text-accent-purple"
-                  : "text-text-tertiary hover:text-text-secondary"
-              }`}
-            >
-              <Network className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">图谱</span>
-            </button>
+            {VIEW_MODES.map((mode) => (
+              <button
+                key={mode.key}
+                onClick={() => setViewMode(mode.key)}
+                className={`px-2.5 py-1.5 text-sm flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  viewMode === mode.key
+                    ? mode.activeClass
+                    : "text-text-tertiary hover:text-text-secondary"
+                }`}
+                title={mode.label}
+              >
+                <mode.icon className="w-3.5 h-3.5" />
+                <span className="hidden lg:inline text-xs">{mode.label}</span>
+              </button>
+            ))}
           </div>
         </div>
       </header>
@@ -248,28 +250,30 @@ export default function WikiPage({
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden relative">
         {/* Mobile sidebar overlay */}
-        {sidebarOpen && (
+        {showSidebar && sidebarOpen && (
           <div
             className="fixed inset-0 bg-black/50 z-30 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
 
-        {/* Sidebar */}
-        <div
-          className={`${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          } lg:translate-x-0 fixed lg:relative z-40 lg:z-auto h-[calc(100vh-3.5rem)] transition-transform duration-200`}
-        >
-          <Sidebar
-            categories={data.categories}
-            activeSlug={activeSlug}
-            onSelect={handleNavigate}
-          />
-        </div>
+        {/* Sidebar — only show for read & mindmap modes */}
+        {showSidebar && (
+          <div
+            className={`${
+              sidebarOpen ? "translate-x-0" : "-translate-x-full"
+            } lg:translate-x-0 fixed lg:relative z-40 lg:z-auto h-[calc(100vh-3.5rem)] transition-transform duration-200`}
+          >
+            <Sidebar
+              categories={data.categories}
+              activeSlug={activeSlug}
+              onSelect={viewMode === "read" ? handleNavigate : handleGraphSelect}
+            />
+          </div>
+        )}
 
         {/* Content area */}
-        {viewMode === "read" ? (
+        {viewMode === "read" && (
           <div className="flex flex-1 overflow-hidden">
             <div
               id="wiki-content-area"
@@ -292,18 +296,17 @@ export default function WikiPage({
                 </div>
               )}
             </div>
-
-            {/* TOC */}
             {activePage && (
               <div className="pr-6 pt-8 hidden xl:block">
                 <TableOfContents content={activePage.content} />
               </div>
             )}
           </div>
-        ) : (
-          /* Graph view */
-          <div className="flex-1 p-4">
-            <KnowledgeGraph
+        )}
+
+        {viewMode === "cosmos" && (
+          <div className="flex-1">
+            <CosmosGraph
               nodes={data.graph.nodes}
               links={data.graph.links}
               activeSlug={activeSlug}
@@ -311,9 +314,25 @@ export default function WikiPage({
             />
           </div>
         )}
+
+        {viewMode === "mindmap" && (
+          <div className="flex-1 p-4">
+            <MindMap
+              nodes={data.graph.nodes}
+              links={data.graph.links}
+              activeSlug={activeSlug}
+              onSelect={handleGraphSelect}
+            />
+          </div>
+        )}
+
+        {viewMode === "stats" && (
+          <div className="flex-1 overflow-hidden">
+            <StatsView data={data} onSelect={handleNavigate} />
+          </div>
+        )}
       </div>
 
-      {/* Search dialog */}
       <SearchDialog
         pages={data.pages}
         isOpen={searchOpen}
