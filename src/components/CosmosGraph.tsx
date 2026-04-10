@@ -330,6 +330,7 @@ export default function RelationGraph({
     nodesRef.current = simNodes;
     linksRef.current = simLinks;
 
+    // --- Phase 1: Run simulation silently until stable ---
     const sim = d3
       .forceSimulation(simNodes)
       .force(
@@ -337,16 +338,50 @@ export default function RelationGraph({
         d3
           .forceLink<SimNode, SimLink>(simLinks)
           .id((d) => d.id)
-          .distance(110)
+          .distance(120)
+          .strength(0.4)
       )
-      .force("charge", d3.forceManyBody().strength(-350))
+      .force("charge", d3.forceManyBody().strength(-200).distanceMax(400))
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius(40))
-      .on("tick", draw);
+      .force("collision", d3.forceCollide().radius(45))
+      .alphaDecay(0.03)
+      .velocityDecay(0.55)
+      .stop(); // Don't auto-run — we tick manually
+
+    // Pre-compute layout (300 ticks is plenty to stabilize)
+    for (let i = 0; i < 300; i++) sim.tick();
+
+    // Fix all nodes in place so they don't drift
+    for (const n of simNodes) {
+      n.fx = n.x;
+      n.fy = n.y;
+    }
 
     simRef.current = sim;
 
-    // Zoom
+    // --- Phase 2: Compute zoom-to-fit transform ---
+    const padding = 60;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const n of simNodes) {
+      if (n.x != null && n.y != null) {
+        minX = Math.min(minX, n.x);
+        minY = Math.min(minY, n.y);
+        maxX = Math.max(maxX, n.x);
+        maxY = Math.max(maxY, n.y);
+      }
+    }
+    const gw = maxX - minX + padding * 2;
+    const gh = maxY - minY + padding * 2;
+    const fitScale = Math.min(width / gw, height / gh, 1.5);
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const fitTransform = d3.zoomIdentity
+      .translate(width / 2, height / 2)
+      .scale(fitScale)
+      .translate(-cx, -cy);
+    transformRef.current = fitTransform;
+
+    // --- Phase 3: Set up zoom ---
     const zoom = d3
       .zoom<HTMLCanvasElement, unknown>()
       .scaleExtent([0.15, 4])
@@ -361,38 +396,14 @@ export default function RelationGraph({
         s: d3.Selection<HTMLCanvasElement, unknown, null, undefined>
       ) => void
     );
+    // Apply initial transform
+    (sel as d3.Selection<HTMLCanvasElement, unknown, null, undefined>).call(
+      (zoom as unknown as d3.ZoomBehavior<HTMLCanvasElement, unknown>).transform,
+      fitTransform
+    );
 
-    // Auto-fit after stabilization
-    setTimeout(() => {
-      const padding = 80;
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      for (const n of simNodes) {
-        if (n.x != null && n.y != null) {
-          minX = Math.min(minX, n.x);
-          minY = Math.min(minY, n.y);
-          maxX = Math.max(maxX, n.x);
-          maxY = Math.max(maxY, n.y);
-        }
-      }
-      if (minX < Infinity) {
-        const gw = maxX - minX + padding * 2;
-        const gh = maxY - minY + padding * 2;
-        const scale = Math.min(width / gw, height / gh, 1.2);
-        const cx = (minX + maxX) / 2;
-        const cy = (minY + maxY) / 2;
-        const transform = d3.zoomIdentity
-          .translate(width / 2, height / 2)
-          .scale(scale)
-          .translate(-cx, -cy);
-        (sel as d3.Selection<HTMLCanvasElement, unknown, null, undefined>)
-          .transition()
-          .duration(800)
-          .call(
-            (zoom as unknown as d3.ZoomBehavior<HTMLCanvasElement, unknown>).transform,
-            transform
-          );
-      }
-    }, 2000);
+    // Draw once immediately
+    draw();
 
     // Mouse interactions
     function getNodeAtPos(mx: number, my: number): SimNode | null {
@@ -429,8 +440,7 @@ export default function RelationGraph({
       canvas.height = h * dpr;
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
-      sim.force("center", d3.forceCenter(w / 2, h / 2));
-      sim.alpha(0.1).restart();
+      draw();
     }
     window.addEventListener("resize", handleResize);
 
