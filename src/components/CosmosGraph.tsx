@@ -11,14 +11,15 @@ interface Props {
   onSelect: (slug: string) => void;
 }
 
+// Bright, saturated colors for high visibility on dark bg
 const CAT_COLORS: Record<string, string> = {
-  root: "#f59e0b",
-  concepts: "#7c8eff",
-  entities: "#c084fc",
-  changelog: "#4ade80",
-  guides: "#60a5fa",
-  docs: "#60a5fa",
-  api: "#fb7185",
+  root: "#fbbf24",
+  concepts: "#93a3ff",
+  entities: "#d8b4fe",
+  changelog: "#6ee7b7",
+  guides: "#7dd3fc",
+  docs: "#7dd3fc",
+  api: "#fda4af",
 };
 
 interface SNode extends d3.SimulationNodeDatum {
@@ -30,6 +31,18 @@ interface SNode extends d3.SimulationNodeDatum {
 interface SLink extends d3.SimulationLinkDatum<SNode> {
   source: SNode | string;
   target: SNode | string;
+}
+
+// Simple AABB overlap test for label placement
+interface LabelRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+function rectsOverlap(a: LabelRect, b: LabelRect): boolean {
+  return !(a.x + a.w < b.x || b.x + b.w < a.x || a.y + a.h < b.y || b.y + b.h < a.y);
 }
 
 export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Props) {
@@ -58,7 +71,8 @@ export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Pr
     const W = canvas.width / dpr;
     const H = canvas.height / dpr;
     const t = transformRef.current;
-    const hl = hoveredRef.current || activeRef.current;
+    // Only dim non-neighbors when HOVERING — not when there's just an active selection
+    const hl = hoveredRef.current;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
@@ -91,73 +105,141 @@ export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Pr
       ctx.moveTo(s.x, s.y!);
       ctx.lineTo(tg.x, tg.y!);
       if (lit) {
-        ctx.strokeStyle = "rgba(148, 163, 184, 0.8)";
-        ctx.lineWidth = 2 / t.k;
+        ctx.strokeStyle = "rgba(180, 200, 220, 0.9)";
+        ctx.lineWidth = 2.5 / t.k;
       } else {
-        ctx.strokeStyle = hl ? "rgba(71, 85, 105, 0.1)" : "rgba(100, 116, 139, 0.35)";
-        ctx.lineWidth = 1 / t.k;
+        ctx.strokeStyle = hl ? "rgba(80, 95, 115, 0.08)" : "rgba(140, 160, 185, 0.4)";
+        ctx.lineWidth = 1.2 / t.k;
       }
       ctx.stroke();
     });
 
     // --- Nodes ---
-    const baseFontSize = 11;
-    sNodes.forEach((n) => {
+    // Sort by linkCount so important nodes render on top
+    const sortedNodes = [...sNodes].sort((a, b) => a.linkCount - b.linkCount);
+
+    // First pass: draw all node dots with glow
+    sortedNodes.forEach((n) => {
       if (n.x == null || n.y == null) return;
       const color = CAT_COLORS[n.category] || "#7c8eff";
       const isActive = n.id === activeRef.current;
       const isHover = n.id === hoveredRef.current;
       const inNb = nb.has(n.id);
       const dim = hl && !inNb;
-      const r = (5 + Math.min(n.linkCount * 1, 8)) / t.k;
+      const r = (5 + Math.min(n.linkCount * 1.8, 12)) / t.k;
 
-      // Soft glow for hover/active
-      if (isHover || isActive) {
+      // Ambient glow for every node (subtle bloom)
+      if (!dim) {
         ctx.beginPath();
-        ctx.arc(n.x, n.y, r * 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = color + "25";
+        ctx.arc(n.x, n.y, r * 2, 0, Math.PI * 2);
+        ctx.fillStyle = color + "18";
         ctx.fill();
       }
 
-      // Node dot
+      // Stronger glow for hover/active
+      if (isHover || isActive) {
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, r * 3, 0, Math.PI * 2);
+        ctx.fillStyle = color + "35";
+        ctx.fill();
+      }
+
+      // Node dot — bright and saturated
       ctx.beginPath();
       ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-      ctx.fillStyle = dim ? color + "30" : color;
+      ctx.fillStyle = dim ? color + "20" : color;
       ctx.fill();
+
+      // Bright border ring on every node for visibility
+      if (!dim) {
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+        ctx.strokeStyle = color + "60";
+        ctx.lineWidth = 1.2 / t.k;
+        ctx.stroke();
+      }
 
       // Active ring
       if (isActive) {
         ctx.beginPath();
-        ctx.arc(n.x, n.y, r + 2.5 / t.k, 0, Math.PI * 2);
-        ctx.strokeStyle = "#ffffffcc";
-        ctx.lineWidth = 1.5 / t.k;
+        ctx.arc(n.x, n.y, r + 3 / t.k, 0, Math.PI * 2);
+        ctx.strokeStyle = "#ffffffdd";
+        ctx.lineWidth = 2 / t.k;
+        ctx.stroke();
+      }
+    });
+
+    // Second pass: draw labels with overlap prevention
+    // Sort by priority: hovered > active > high linkCount > rest
+    const labelCandidates = sortedNodes
+      .filter((n) => n.x != null && n.y != null)
+      .map((n) => {
+        let priority = n.linkCount;
+        if (n.id === hoveredRef.current) priority = 10000;
+        else if (n.id === activeRef.current) priority = 9000;
+        else if (nb.has(n.id) && hl) priority += 500;
+        return { node: n, priority };
+      })
+      .sort((a, b) => b.priority - a.priority);
+
+    const placedLabels: LabelRect[] = [];
+    const minFontScreenPx = 7;
+
+    labelCandidates.forEach(({ node: n }) => {
+      if (n.x == null || n.y == null) return;
+      const color = CAT_COLORS[n.category] || "#7c8eff";
+      const isActive = n.id === activeRef.current;
+      const isHover = n.id === hoveredRef.current;
+      const inNb = nb.has(n.id);
+      const dim = hl && !inNb;
+      const r = (5 + Math.min(n.linkCount * 1.8, 12)) / t.k;
+
+      const fs = (isHover || isActive ? 14 : 12.5) / t.k;
+      const screenFs = fs * t.k;
+      if (screenFs < minFontScreenPx) return;
+
+      ctx.font = `${isHover || isActive ? 700 : 600} ${fs}px system-ui, -apple-system, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+
+      const label = n.title.length > 26 ? n.title.slice(0, 24) + "…" : n.title;
+      const tw = ctx.measureText(label).width;
+      const px = 6 / t.k;
+      const py = 3 / t.k;
+      const ly = n.y + r + 6 / t.k;
+
+      const labelRect: LabelRect = {
+        x: n.x - tw / 2 - px,
+        y: ly - py,
+        w: tw + px * 2,
+        h: fs + py * 2,
+      };
+
+      // Check overlap with already placed labels (skip for hovered/active — always show)
+      const forceShow = isHover || isActive;
+      if (!forceShow) {
+        const hasOverlap = placedLabels.some((placed) => rectsOverlap(labelRect, placed));
+        if (hasOverlap) return;
+      }
+
+      placedLabels.push(labelRect);
+
+      // Text bg pill — slightly lighter than page bg for pill to "pop"
+      if (!dim) {
+        ctx.fillStyle = "rgba(20, 24, 36, 0.92)";
+        ctx.beginPath();
+        ctx.roundRect(labelRect.x, labelRect.y, labelRect.w, labelRect.h, 4 / t.k);
+        ctx.fill();
+        // Category-colored border on pill
+        ctx.strokeStyle = color + "50";
+        ctx.lineWidth = 1 / t.k;
         ctx.stroke();
       }
 
-      // Label — always readable
-      const fs = (isHover || isActive ? 12.5 : 11.5) / t.k;
-      if (fs * t.k > 4) {
-        ctx.font = `${isHover || isActive ? 600 : 500} ${fs}px system-ui, -apple-system, sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "top";
-        const label = n.title.length > 28 ? n.title.slice(0, 26) + "…" : n.title;
-        const ly = n.y + r + 4 / t.k;
-
-        // Text bg pill for readability
-        if (!dim) {
-          const tw = ctx.measureText(label).width;
-          const px = 4 / t.k;
-          const py = 2 / t.k;
-          ctx.fillStyle = "rgba(10, 11, 14, 0.7)";
-          ctx.beginPath();
-          ctx.roundRect(n.x - tw / 2 - px, ly - py, tw + px * 2, fs + py * 2, 3 / t.k);
-          ctx.fill();
-        }
-
-        ctx.fillStyle = dim ? "rgba(148, 163, 184, 0.12)" :
-                         (isHover || isActive) ? "#f1f5f9" : "#cbd5e1";
-        ctx.fillText(label, n.x, ly);
-      }
+      // Use category color for text — these are inherently bright
+      ctx.fillStyle = dim ? "rgba(148, 163, 184, 0.06)" :
+                       (isHover || isActive) ? "#ffffff" : color;
+      ctx.fillText(label, n.x, ly);
     });
 
     ctx.restore();
@@ -194,17 +276,29 @@ export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Pr
     nodesRef.current = sNodes;
     linksRef.current = sLinks;
 
-    // Obsidian-like gentle physics
+    // Aggressive spread physics — adapted to node count
+    const nodeCount = sNodes.length;
+    const chargeStrength = nodeCount > 30 ? -500 : -300;
+    const linkDist = nodeCount > 30 ? 200 : 140;
+    const collisionR = nodeCount > 30 ? 45 : 30;
+
     const sim = d3.forceSimulation(sNodes)
-      .force("link", d3.forceLink<SNode, SLink>(sLinks).id(d => d.id).distance(90).strength(0.3))
-      .force("charge", d3.forceManyBody().strength(-120).distanceMax(350))
+      .force("link", d3.forceLink<SNode, SLink>(sLinks).id(d => d.id).distance(linkDist).strength(0.18))
+      .force("charge", d3.forceManyBody().strength(chargeStrength).distanceMax(700))
       .force("center", d3.forceCenter(W / 2, H / 2).strength(0.05))
-      .force("collision", d3.forceCollide().radius(25))
+      .force("collision", d3.forceCollide().radius((d) => collisionR + Math.min((d as SNode).linkCount * 3, 20)).iterations(2))
+      .force("x", d3.forceX(W / 2).strength(0.03))
+      .force("y", d3.forceY(H / 2).strength(0.03))
       .alphaDecay(0.015)
-      .velocityDecay(0.4)
-      .alphaMin(0.005); // Keep a tiny bit of life
+      .velocityDecay(0.45)
+      .alphaMin(0.005);
+
+    // Pre-compute 300 ticks so layout is stable on first render
+    sim.stop();
+    for (let i = 0; i < 300; i++) sim.tick();
 
     simRef.current = sim;
+    sim.restart();
 
     // Zoom + pan
     const zoom = d3.zoom<HTMLCanvasElement, unknown>()
@@ -216,9 +310,9 @@ export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Pr
       zoom as unknown as (s: d3.Selection<HTMLCanvasElement, unknown, null, undefined>) => void
     );
 
-    // Auto-fit after initial settling
-    setTimeout(() => {
-      const pad = 50;
+    // Immediate auto-fit since layout is pre-computed
+    {
+      const pad = 60;
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       for (const n of sNodes) {
         if (n.x != null && n.y != null) {
@@ -229,14 +323,15 @@ export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Pr
       if (x0 < Infinity) {
         const gw = x1 - x0 + pad * 2;
         const gh = y1 - y0 + pad * 2;
-        const s = Math.min(W / gw, H / gh, 1.8);
+        const s = Math.min(W / gw, H / gh, 2.0);
         const tx = d3.zoomIdentity
           .translate(W / 2, H / 2).scale(s).translate(-(x0 + x1) / 2, -(y0 + y1) / 2);
+        transformRef.current = tx;
+        // Also set on the selection so zoom state stays in sync
         (sel as d3.Selection<HTMLCanvasElement, unknown, null, undefined>)
-          .transition().duration(600)
           .call((zoom as unknown as d3.ZoomBehavior<HTMLCanvasElement, unknown>).transform, tx);
       }
-    }, 1500);
+    }
 
     // Hit test
     function nodeAt(mx: number, my: number): SNode | null {
@@ -246,7 +341,7 @@ export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Pr
       for (let i = sNodes.length - 1; i >= 0; i--) {
         const n = sNodes[i];
         if (n.x == null || n.y == null) continue;
-        const r = (4 + Math.min(n.linkCount * 0.8, 6)) / t.k + 8 / t.k;
+        const r = (4 + Math.min(n.linkCount * 1.5, 10)) / t.k + 10 / t.k;
         if ((n.x - x) ** 2 + (n.y! - y) ** 2 < r * r) return n;
       }
       return null;
@@ -269,7 +364,7 @@ export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Pr
       if (n) onSelect(n.id);
     });
 
-    // Drag nodes (Obsidian-style: drag to reposition)
+    // Drag nodes
     let dragStarted = false;
     canvas.addEventListener("mousedown", (e) => {
       const rect = canvas.getBoundingClientRect();
@@ -279,7 +374,7 @@ export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Pr
         dragStarted = false;
         n.fx = n.x;
         n.fy = n.y;
-        sim.alphaTarget(0.1).restart();
+        sim.alphaTarget(0.08).restart();
         e.stopPropagation();
       }
     });
@@ -344,6 +439,11 @@ export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Pr
               <span className="text-text-tertiary">{c}</span>
             </div>
           ))}
+      </div>
+
+      {/* Hint */}
+      <div className="absolute bottom-4 right-4 text-[11px] text-text-tertiary bg-bg-primary/60 backdrop-blur border border-border-primary rounded-lg px-3 py-2">
+        滚轮缩放 · 拖拽节点 · 悬停高亮
       </div>
     </div>
   );
