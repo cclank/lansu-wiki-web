@@ -91,11 +91,11 @@ export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Pr
       ctx.moveTo(s.x, s.y!);
       ctx.lineTo(tg.x, tg.y!);
       if (lit) {
-        ctx.strokeStyle = "rgba(148, 163, 184, 0.6)";
-        ctx.lineWidth = 1.5 / t.k;
+        ctx.strokeStyle = "rgba(148, 163, 184, 0.8)";
+        ctx.lineWidth = 2 / t.k;
       } else {
-        ctx.strokeStyle = hl ? "rgba(71, 85, 105, 0.08)" : "rgba(71, 85, 105, 0.18)";
-        ctx.lineWidth = 0.7 / t.k;
+        ctx.strokeStyle = hl ? "rgba(71, 85, 105, 0.1)" : "rgba(100, 116, 139, 0.35)";
+        ctx.lineWidth = 1 / t.k;
       }
       ctx.stroke();
     });
@@ -109,49 +109,53 @@ export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Pr
       const isHover = n.id === hoveredRef.current;
       const inNb = nb.has(n.id);
       const dim = hl && !inNb;
-      const r = (4 + Math.min(n.linkCount * 0.8, 6)) / t.k;
+      const r = (5 + Math.min(n.linkCount * 1, 8)) / t.k;
 
       // Soft glow for hover/active
       if (isHover || isActive) {
         ctx.beginPath();
         ctx.arc(n.x, n.y, r * 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = color + "18";
+        ctx.fillStyle = color + "25";
         ctx.fill();
       }
 
       // Node dot
       ctx.beginPath();
       ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-      ctx.fillStyle = dim ? color + "25" : color + (isHover || isActive ? "ff" : "bb");
+      ctx.fillStyle = dim ? color + "30" : color;
       ctx.fill();
 
       // Active ring
       if (isActive) {
         ctx.beginPath();
-        ctx.arc(n.x, n.y, r + 2 / t.k, 0, Math.PI * 2);
-        ctx.strokeStyle = "#ffffff88";
-        ctx.lineWidth = 1.2 / t.k;
+        ctx.arc(n.x, n.y, r + 2.5 / t.k, 0, Math.PI * 2);
+        ctx.strokeStyle = "#ffffffcc";
+        ctx.lineWidth = 1.5 / t.k;
         ctx.stroke();
       }
 
-      // Label
-      const fs = (isHover || isActive ? baseFontSize + 1 : baseFontSize) / t.k;
-      if (fs * t.k > 4) { // only show if readable
-        ctx.font = `${isHover || isActive ? 600 : 400} ${fs}px system-ui, -apple-system, sans-serif`;
+      // Label — always readable
+      const fs = (isHover || isActive ? 12.5 : 11.5) / t.k;
+      if (fs * t.k > 4) {
+        ctx.font = `${isHover || isActive ? 600 : 500} ${fs}px system-ui, -apple-system, sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
         const label = n.title.length > 28 ? n.title.slice(0, 26) + "…" : n.title;
-        const ly = n.y + r + 3 / t.k;
+        const ly = n.y + r + 4 / t.k;
 
-        // Text bg for readability
-        if (inNb || !hl) {
+        // Text bg pill for readability
+        if (!dim) {
           const tw = ctx.measureText(label).width;
-          ctx.fillStyle = "rgba(10, 11, 14, 0.55)";
-          ctx.fillRect(n.x - tw / 2 - 2 / t.k, ly - 1 / t.k, tw + 4 / t.k, fs + 3 / t.k);
+          const px = 4 / t.k;
+          const py = 2 / t.k;
+          ctx.fillStyle = "rgba(10, 11, 14, 0.7)";
+          ctx.beginPath();
+          ctx.roundRect(n.x - tw / 2 - px, ly - py, tw + px * 2, fs + py * 2, 3 / t.k);
+          ctx.fill();
         }
 
-        ctx.fillStyle = dim ? "rgba(148, 163, 184, 0.15)" :
-                         (isHover || isActive) ? "#e2e8f0" : "rgba(148, 163, 184, 0.7)";
+        ctx.fillStyle = dim ? "rgba(148, 163, 184, 0.12)" :
+                         (isHover || isActive) ? "#f1f5f9" : "#cbd5e1";
         ctx.fillText(label, n.x, ly);
       }
     });
