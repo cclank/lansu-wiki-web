@@ -210,7 +210,7 @@ export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Pr
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
 
-      const label = n.title.length > 26 ? n.title.slice(0, 24) + "…" : n.title;
+      const label = n.title;
       const tw = ctx.measureText(label).width;
       const px = 6 / t.k;
       const py = 3 / t.k;
