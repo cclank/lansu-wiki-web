@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useMemo, useCallback, useState } from "react";
 import * as d3 from "d3";
+import { Search, ChevronRight, X } from "lucide-react";
 import type { GraphNode, GraphLink, WikiPage } from "@/lib/github";
 
 interface MindMapProps {
@@ -32,6 +33,16 @@ const CATEGORY_COLORS: Record<string, string> = {
   api: "#d48a8a",
 };
 
+const CATEGORY_LABELS: Record<string, string> = {
+  root: "根目录",
+  concepts: "概念",
+  entities: "实体",
+  changelog: "更新日志",
+  guides: "指南",
+  docs: "文档",
+  api: "API",
+};
+
 function isLightTheme(): boolean {
   return document.documentElement.getAttribute("data-theme") === "light";
 }
@@ -58,7 +69,6 @@ function extractSummary(content: string): string {
       !trimmed.startsWith("![") &&
       !trimmed.startsWith(">")
     ) {
-      // Strip markdown formatting
       const clean = trimmed
         .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
         .replace(/\[\[([^\]]+)\]\]/g, "$1")
@@ -84,7 +94,77 @@ export default function MindMap({
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Build adjacency map once
+  // --- Tier 2: Search ---
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchMatches, setSearchMatches] = useState<Set<string>>(new Set());
+
+  // --- Tier 2: Breadcrumb history ---
+  const [history, setHistory] = useState<{ slug: string; title: string }[]>([]);
+  const prevSlugRef = useRef<string | null>(null);
+
+  // Track center node history
+  useEffect(() => {
+    if (!activeSlug || activeSlug === prevSlugRef.current) return;
+    prevSlugRef.current = activeSlug;
+    const node = nodes.find((n) => n.id === activeSlug);
+    if (!node) return;
+    setHistory((prev) => {
+      // Don't duplicate if going back to same node
+      if (prev.length > 0 && prev[prev.length - 1].slug === activeSlug) return prev;
+      // Keep max 10
+      const next = [...prev, { slug: activeSlug, title: node.title }];
+      return next.length > 10 ? next.slice(-10) : next;
+    });
+  }, [activeSlug, nodes]);
+
+  // --- Tier 2: Category filter ---
+  const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(new Set());
+
+  // Available categories from current nodes
+  const availableCategories = useMemo(() => {
+    const cats = new Set<string>();
+    for (const n of nodes) cats.add(n.category);
+    return [...cats].sort();
+  }, [nodes]);
+
+  function toggleCategory(cat: string) {
+    setHiddenCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  }
+
+  // Search logic
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchMatches(new Set());
+      return;
+    }
+    const q = searchQuery.toLowerCase();
+    const matches = new Set<string>();
+    for (const n of nodes) {
+      if (n.title.toLowerCase().includes(q)) {
+        matches.add(n.id);
+      }
+    }
+    // Also search page content
+    for (const p of pages) {
+      if (
+        p.content.toLowerCase().includes(q) ||
+        (Array.isArray(p.frontmatter.tags) &&
+          (p.frontmatter.tags as string[]).some((t) =>
+            t.toLowerCase().includes(q)
+          ))
+      ) {
+        matches.add(p.slug);
+      }
+    }
+    setSearchMatches(matches);
+  }, [searchQuery, nodes, pages]);
+
+  // Build adjacency map
   const adj = useMemo(() => {
     const map = new Map<string, Set<string>>();
     for (const n of nodes) map.set(n.id, new Set());
@@ -97,7 +177,7 @@ export default function MindMap({
     return map;
   }, [nodes, links]);
 
-  // Build tree from active node
+  // Build tree from active node (with category filtering)
   const treeData = useMemo(() => {
     const centerSlug = activeSlug || (nodes.length > 0 ? nodes[0].id : null);
     if (!centerSlug) return null;
@@ -116,9 +196,11 @@ export default function MindMap({
       if (depth < maxDepth) {
         const neighbors = adj.get(id) || new Set();
         for (const neighbor of neighbors) {
-          if (!visited.has(neighbor)) {
-            children.push(buildTree(neighbor, depth + 1));
-          }
+          if (visited.has(neighbor)) continue;
+          const neighborNode = nodeMap.get(neighbor);
+          // Skip hidden categories (but never skip center node)
+          if (neighborNode && hiddenCategories.has(neighborNode.category)) continue;
+          children.push(buildTree(neighbor, depth + 1));
         }
         children.sort((a, b) => b.children.length - a.children.length);
       }
@@ -136,7 +218,7 @@ export default function MindMap({
     const tree = buildTree(centerSlug, 0);
     countDescendants(tree);
     return tree;
-  }, [nodes, adj, activeSlug, maxDepth]);
+  }, [nodes, adj, activeSlug, maxDepth, hiddenCategories]);
 
   // Page lookup for hover preview
   const pageMap = useMemo(() => {
@@ -160,14 +242,11 @@ export default function MindMap({
 
   const handleNodeClick = useCallback(
     (nodeId: string) => {
-      // Single click vs double click
       if (clickTimerRef.current) {
-        // Double click — navigate to read mode
         clearTimeout(clickTimerRef.current);
         clickTimerRef.current = null;
         onNavigate(nodeId);
       } else {
-        // Wait for potential double click
         clickTimerRef.current = setTimeout(() => {
           clickTimerRef.current = null;
           onSelect(nodeId);
@@ -176,6 +255,18 @@ export default function MindMap({
     },
     [onSelect, onNavigate]
   );
+
+  // Collect all tree node IDs for search match checking
+  const treeNodeIds = useMemo(() => {
+    if (!treeData) return new Set<string>();
+    const ids = new Set<string>();
+    function collect(node: TreeNode) {
+      ids.add(node.id);
+      for (const child of node.children) collect(child);
+    }
+    collect(treeData);
+    return ids;
+  }, [treeData]);
 
   const render = useCallback(() => {
     if (!svgRef.current || !treeData) return;
@@ -194,7 +285,6 @@ export default function MindMap({
       .append("g")
       .attr("transform", `translate(${width / 2},${height / 2})`);
 
-    // Zoom
     const zoom = d3
       .zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.3, 3])
@@ -210,7 +300,6 @@ export default function MindMap({
       ) => void
     );
 
-    // Create radial tree layout
     const root = d3.hierarchy(treeData);
     const treeLayout = d3
       .tree<TreeNode>()
@@ -219,7 +308,6 @@ export default function MindMap({
 
     treeLayout(root);
 
-    // Radial link generator
     const linkGen = d3
       .linkRadial<
         d3.HierarchyPointLink<TreeNode>,
@@ -228,7 +316,7 @@ export default function MindMap({
       .angle((d) => d.x)
       .radius((d) => d.y);
 
-    // Draw links with gradient animation
+    // Draw links
     const linkGroup = g.append("g");
     root.links().forEach((link, i) => {
       const sourceColor =
@@ -252,12 +340,7 @@ export default function MindMap({
 
       linkGroup
         .append("path")
-        .attr(
-          "d",
-          linkGen(
-            link as unknown as d3.HierarchyPointLink<TreeNode>
-          )
-        )
+        .attr("d", linkGen(link as unknown as d3.HierarchyPointLink<TreeNode>))
         .attr("fill", "none")
         .attr("stroke", `url(#${gradientId})`)
         .attr("stroke-width", 2)
@@ -269,6 +352,7 @@ export default function MindMap({
     });
 
     const light = isLightTheme();
+    const hasSearch = searchMatches.size > 0;
 
     // Draw nodes
     const nodeGroup = g
@@ -289,29 +373,45 @@ export default function MindMap({
     // Node glow
     nodeGroup
       .append("circle")
-      .attr("r", (d) => (d.depth === 0 ? 24 : 16 - d.depth * 3))
+      .attr("r", (d) => {
+        const isMatch = searchMatches.has(d.data.id);
+        const base = d.depth === 0 ? 24 : 16 - d.depth * 3;
+        return isMatch ? base * 1.5 : base;
+      })
       .attr("fill", (d) => CATEGORY_COLORS[d.data.category] || "#3b82f6")
-      .attr("opacity", 0.12)
+      .attr("opacity", (d) => {
+        if (hasSearch) return searchMatches.has(d.data.id) ? 0.3 : 0.05;
+        return 0.12;
+      })
       .attr("filter", "blur(4px)");
 
     // Node core
     nodeGroup
       .append("circle")
-      .attr("r", (d) => (d.depth === 0 ? 14 : 8 - d.depth))
+      .attr("r", (d) => {
+        const isMatch = searchMatches.has(d.data.id);
+        const base = d.depth === 0 ? 14 : 8 - d.depth;
+        return isMatch ? base * 1.3 : base;
+      })
       .attr("fill", (d) => CATEGORY_COLORS[d.data.category] || "#3b82f6")
-      .attr("stroke", (d) =>
-        d.data.id === activeSlug
-          ? light
-            ? "#2c2825"
-            : "#fff"
-          : "transparent"
-      )
-      .attr("stroke-width", 2)
-      .attr("opacity", 0)
+      .attr("stroke", (d) => {
+        if (searchMatches.has(d.data.id)) return "#e07a5f";
+        return d.data.id === activeSlug
+          ? light ? "#2c2825" : "#fff"
+          : "transparent";
+      })
+      .attr("stroke-width", (d) => searchMatches.has(d.data.id) ? 3 : 2)
+      .attr("opacity", (d) => {
+        if (hasSearch) return searchMatches.has(d.data.id) ? 1 : 0.2;
+        return 0;
+      })
       .transition()
       .delay((_, i) => i * 40)
       .duration(400)
-      .attr("opacity", 1);
+      .attr("opacity", (d) => {
+        if (hasSearch) return searchMatches.has(d.data.id) ? 1 : 0.2;
+        return 1;
+      });
 
     // Pulse animation for center node
     nodeGroup
@@ -343,16 +443,18 @@ export default function MindMap({
       .attr("font-size", (d) =>
         d.depth === 0 ? "13px" : `${12 - d.depth}px`
       )
-      .attr("fill", (d) =>
-        d.depth === 0
-          ? light
-            ? "#2c2825"
-            : "#e8eaed"
-          : light
-            ? "#5c5550"
-            : "#9aa0b0"
-      )
-      .attr("font-weight", (d) => (d.depth === 0 ? "600" : "400"))
+      .attr("fill", (d) => {
+        if (hasSearch && !searchMatches.has(d.data.id)) {
+          return light ? "rgba(44,40,37,0.2)" : "rgba(232,234,237,0.2)";
+        }
+        return d.depth === 0
+          ? light ? "#2c2825" : "#e8eaed"
+          : light ? "#5c5550" : "#9aa0b0";
+      })
+      .attr("font-weight", (d) => {
+        if (searchMatches.has(d.data.id)) return "700";
+        return d.depth === 0 ? "600" : "400";
+      })
       .text((d) => {
         const t = d.data.title;
         const maxLen = d.depth === 0 ? 30 : 20 - d.depth * 4;
@@ -364,7 +466,7 @@ export default function MindMap({
       .duration(400)
       .attr("opacity", 1);
 
-    // Connection count badges (for nodes with children or hidden neighbors)
+    // Connection count badges
     nodeGroup
       .filter((d) => {
         const neighborCount = adj.get(d.data.id)?.size || 0;
@@ -387,8 +489,11 @@ export default function MindMap({
       .transition()
       .delay((_, i) => i * 40 + 300)
       .duration(400)
-      .attr("opacity", 1);
-  }, [treeData, activeSlug, handleNodeClick, adj]);
+      .attr("opacity", (d) => {
+        if (hasSearch && !searchMatches.has(d.data.id)) return 0.15;
+        return 1;
+      });
+  }, [treeData, activeSlug, handleNodeClick, adj, searchMatches]);
 
   useEffect(() => {
     render();
@@ -396,6 +501,16 @@ export default function MindMap({
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [render]);
+
+  // Search match count in current tree
+  const treeMatchCount = useMemo(() => {
+    if (searchMatches.size === 0) return 0;
+    let count = 0;
+    for (const id of searchMatches) {
+      if (treeNodeIds.has(id)) count++;
+    }
+    return count;
+  }, [searchMatches, treeNodeIds]);
 
   if (!treeData) {
     return (
@@ -409,8 +524,8 @@ export default function MindMap({
     <div className="relative w-full h-full min-h-[500px] bg-bg-primary rounded-xl border border-border-primary overflow-hidden">
       <svg ref={svgRef} className="w-full h-full" />
 
-      {/* Center node info */}
-      <div className="absolute top-4 left-4 bg-bg-primary/80 backdrop-blur-md border border-border-primary rounded-xl px-4 py-3">
+      {/* Center node info + breadcrumb */}
+      <div className="absolute top-4 left-4 bg-bg-primary/80 backdrop-blur-md border border-border-primary rounded-xl px-4 py-3 max-w-[320px]">
         <div className="text-xs text-text-tertiary mb-1">脑图中心</div>
         <div className="text-sm font-medium text-text-primary">
           {treeData.title}
@@ -418,22 +533,104 @@ export default function MindMap({
         <div className="text-xs text-text-tertiary mt-1">
           {treeData.children.length} 个直接关联 · {treeData.totalDescendants} 个节点
         </div>
+
+        {/* Breadcrumb history */}
+        {history.length > 1 && (
+          <div className="flex items-center gap-0.5 mt-2 pt-2 border-t border-border-primary overflow-x-auto">
+            {history.slice(-5).map((item, idx, arr) => (
+              <div key={`${item.slug}-${idx}`} className="flex items-center gap-0.5 shrink-0">
+                <button
+                  onClick={() => onSelect(item.slug)}
+                  className={`text-[10px] px-1.5 py-0.5 rounded transition-colors cursor-pointer truncate max-w-[80px] ${
+                    item.slug === activeSlug
+                      ? "text-accent-vivid bg-accent-vivid/10"
+                      : "text-text-tertiary hover:text-text-secondary"
+                  }`}
+                  title={item.title}
+                >
+                  {item.title.length > 10 ? item.title.slice(0, 9) + "…" : item.title}
+                </button>
+                {idx < arr.length - 1 && (
+                  <ChevronRight className="w-2.5 h-2.5 text-text-tertiary/40 shrink-0" />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Depth control */}
-      <div className="absolute top-4 right-4 bg-bg-primary/80 backdrop-blur-md border border-border-primary rounded-xl px-4 py-3 flex items-center gap-3">
-        <span className="text-xs text-text-tertiary">层深</span>
-        <input
-          type="range"
-          min={1}
-          max={5}
-          value={maxDepth}
-          onChange={(e) => setMaxDepth(Number(e.target.value))}
-          className="w-20 h-1 accent-accent-vivid cursor-pointer"
-        />
-        <span className="text-xs text-text-primary font-mono w-3 text-center">
-          {maxDepth}
-        </span>
+      {/* Right controls: depth + search + category filter */}
+      <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
+        {/* Depth control */}
+        <div className="bg-bg-primary/80 backdrop-blur-md border border-border-primary rounded-xl px-4 py-2.5 flex items-center gap-3">
+          <span className="text-xs text-text-tertiary">层深</span>
+          <input
+            type="range"
+            min={1}
+            max={5}
+            value={maxDepth}
+            onChange={(e) => setMaxDepth(Number(e.target.value))}
+            className="w-20 h-1 accent-accent-vivid cursor-pointer"
+          />
+          <span className="text-xs text-text-primary font-mono w-3 text-center">
+            {maxDepth}
+          </span>
+        </div>
+
+        {/* Search */}
+        <div className="bg-bg-primary/80 backdrop-blur-md border border-border-primary rounded-xl px-3 py-2 flex items-center gap-2">
+          <Search className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="搜索节点..."
+            className="bg-transparent text-xs text-text-primary placeholder:text-text-tertiary outline-none w-28"
+          />
+          {searchQuery && (
+            <>
+              <span className="text-[10px] text-text-tertiary shrink-0">
+                {treeMatchCount}/{searchMatches.size}
+              </span>
+              <button
+                onClick={() => setSearchQuery("")}
+                className="text-text-tertiary hover:text-text-secondary cursor-pointer"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Category filter */}
+        <div className="bg-bg-primary/80 backdrop-blur-md border border-border-primary rounded-xl px-3 py-2">
+          <div className="flex flex-wrap gap-1.5">
+            {availableCategories.map((cat) => {
+              const color = CATEGORY_COLORS[cat] || "#3b82f6";
+              const hidden = hiddenCategories.has(cat);
+              return (
+                <button
+                  key={cat}
+                  onClick={() => toggleCategory(cat)}
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] transition-all cursor-pointer border ${
+                    hidden
+                      ? "opacity-30 border-transparent"
+                      : "opacity-100 border-border-primary"
+                  }`}
+                  title={hidden ? `显示 ${cat}` : `隐藏 ${cat}`}
+                >
+                  <div
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: color }}
+                  />
+                  <span className="text-text-tertiary">
+                    {CATEGORY_LABELS[cat] || cat}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Hover preview card */}
@@ -443,8 +640,7 @@ export default function MindMap({
             <div
               className="w-2 h-2 rounded-full shrink-0"
               style={{
-                background:
-                  CATEGORY_COLORS[hoveredPage.category] || "#3b82f6",
+                background: CATEGORY_COLORS[hoveredPage.category] || "#3b82f6",
               }}
             />
             <span className="text-sm font-medium text-text-primary truncate">
@@ -477,7 +673,7 @@ export default function MindMap({
         </div>
       )}
 
-      {/* Help (only show when no hover card) */}
+      {/* Help */}
       {!hoveredPage && (
         <div className="absolute bottom-4 right-4 text-xs text-text-tertiary bg-bg-primary/80 backdrop-blur-md border border-border-primary rounded-xl px-3 py-2">
           单击切换中心 · 双击阅读 · 滚轮缩放
