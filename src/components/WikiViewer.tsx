@@ -12,6 +12,8 @@ import {
   Globe,
   Brain,
   BarChart3,
+  LayoutGrid,
+  BookA,
 } from "lucide-react";
 import type { WikiData } from "@/lib/github";
 import Sidebar from "@/components/Sidebar";
@@ -20,16 +22,20 @@ import TableOfContents from "@/components/TableOfContents";
 import CosmosGraph from "@/components/CosmosGraph";
 import MindMap from "@/components/MindMap";
 import StatsView from "@/components/StatsView";
+import GalleryView from "@/components/GalleryView";
+import GlossaryView from "@/components/GlossaryView";
 import SearchDialog from "@/components/SearchDialog";
 import ThemeToggle from "@/components/ThemeToggle";
 import Link from "next/link";
 
-type ViewMode = "read" | "cosmos" | "mindmap" | "stats";
+type ViewMode = "read" | "cosmos" | "mindmap" | "stats" | "gallery" | "glossary";
 
 const VIEW_MODES: { key: ViewMode; label: string; icon: typeof BookOpen; activeClass: string }[] = [
   { key: "read", label: "阅读", icon: BookOpen, activeClass: "bg-accent-vivid/10 text-accent-vivid" },
+  { key: "gallery", label: "卡片", icon: LayoutGrid, activeClass: "bg-accent-vivid/10 text-accent-vivid" },
   { key: "cosmos", label: "关系图", icon: Globe, activeClass: "bg-accent-vivid/10 text-accent-vivid" },
   { key: "mindmap", label: "脑图", icon: Brain, activeClass: "bg-accent-vivid/10 text-accent-vivid" },
+  { key: "glossary", label: "术语", icon: BookA, activeClass: "bg-accent-vivid/10 text-accent-vivid" },
   { key: "stats", label: "统计", icon: BarChart3, activeClass: "bg-accent-vivid/10 text-accent-vivid" },
 ];
 
@@ -105,6 +111,25 @@ export default function WikiViewer({ data, loading, error, label, owner, repo }:
     }
     return map;
   }, [data]);
+
+  // Backlinks: pages that link TO the active page
+  const backlinks = useMemo(() => {
+    if (!data || !activeSlug) return [];
+    const result: { slug: string; title: string }[] = [];
+    for (const link of data.graph.links) {
+      if (link.target === activeSlug && link.source !== activeSlug) {
+        const page = data.pages.find((p) => p.slug === link.source);
+        if (page) result.push({ slug: page.slug, title: page.title });
+      }
+    }
+    // Deduplicate
+    const seen = new Set<string>();
+    return result.filter((b) => {
+      if (seen.has(b.slug)) return false;
+      seen.add(b.slug);
+      return true;
+    });
+  }, [data, activeSlug]);
 
   const handleNavigate = useCallback((slug: string) => {
     setActiveSlug(slug);
@@ -263,6 +288,7 @@ export default function WikiViewer({ data, loading, error, label, owner, repo }:
                     repo={repo}
                     onNavigate={handleNavigate}
                     slugByName={slugByName}
+                    backlinks={backlinks}
                   />
                 </div>
               ) : (
@@ -301,6 +327,18 @@ export default function WikiViewer({ data, loading, error, label, owner, repo }:
               onSelect={handleGraphSelect}
               onNavigate={handleNavigate}
             />
+          </div>
+        )}
+
+        {viewMode === "gallery" && (
+          <div className="flex-1 overflow-hidden">
+            <GalleryView data={data} onSelect={handleNavigate} />
+          </div>
+        )}
+
+        {viewMode === "glossary" && (
+          <div className="flex-1 overflow-hidden">
+            <GlossaryView data={data} onSelect={handleNavigate} />
           </div>
         )}
 

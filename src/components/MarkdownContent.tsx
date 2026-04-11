@@ -15,6 +15,7 @@ interface MarkdownContentProps {
   repo: string;
   onNavigate: (slug: string) => void;
   slugByName: Map<string, string>;
+  backlinks?: { slug: string; title: string }[];
 }
 
 function resolveRelativeUrl(
@@ -71,6 +72,7 @@ export default function MarkdownContent({
   repo,
   onNavigate,
   slugByName,
+  backlinks = [],
 }: MarkdownContentProps) {
   // Replace [[wiki-links]] with clickable links
   const processedContent = page.content.replace(
@@ -256,6 +258,26 @@ export default function MarkdownContent({
                 </button>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Backlinks — pages that link TO this page */}
+      {backlinks.length > 0 && (
+        <div className={`mt-${page.links.length > 0 ? "4" : "10"} ${page.links.length > 0 ? "" : "pt-6 border-t border-border-primary"}`}>
+          <h4 className="text-sm font-medium text-text-tertiary mb-3">
+            {"被引用 (" + backlinks.length + ")"}
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {backlinks.map((bl) => (
+              <button
+                key={bl.slug}
+                onClick={() => onNavigate(bl.slug)}
+                className="px-3 py-1.5 rounded-lg text-xs border transition-colors bg-accent-vivid/5 text-accent-vivid border-accent-vivid/20 hover:bg-accent-vivid/10 cursor-pointer"
+              >
+                {bl.title}
+              </button>
+            ))}
           </div>
         </div>
       )}

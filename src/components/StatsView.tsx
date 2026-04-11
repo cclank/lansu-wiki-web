@@ -8,6 +8,10 @@ import {
   BarChart3,
   TrendingUp,
   Layers,
+  AlertTriangle,
+  LinkIcon,
+  FileQuestion,
+  HeartPulse,
 } from "lucide-react";
 import type { WikiData } from "@/lib/github";
 
@@ -96,6 +100,42 @@ export default function StatsView({ data, onSelect }: StatsViewProps) {
     // Pages with no outgoing links (orphans)
     const orphanCount = data.pages.filter((p) => p.links.length === 0).length;
 
+    // --- Health check ---
+    // Slug lookup
+    const slugByName = new Map<string, string>();
+    for (const p of data.pages) {
+      const name = p.path.split("/").pop()!.replace(/\.md$/, "").toLowerCase();
+      slugByName.set(name, p.slug);
+    }
+
+    // Dead links: [[link]] targets that don't exist
+    const deadLinks: { source: string; sourceTitle: string; target: string }[] = [];
+    for (const page of data.pages) {
+      for (const link of page.links) {
+        if (!slugByName.has(link)) {
+          deadLinks.push({ source: page.slug, sourceTitle: page.title, target: link });
+        }
+      }
+    }
+
+    // Orphan pages: no incoming links from any page
+    const incomingSet = new Set<string>();
+    for (const link of data.graph.links) {
+      incomingSet.add(link.target);
+    }
+    const orphanPages = data.pages
+      .filter((p) => !incomingSet.has(p.slug))
+      .map((p) => ({ slug: p.slug, title: p.title }));
+
+    // Short pages (< 100 words)
+    const shortPages = data.pages
+      .map((p) => ({ slug: p.slug, title: p.title, words: p.content.split(/\s+/).length }))
+      .filter((p) => p.words < 100);
+
+    // Health score
+    const issues = deadLinks.length + orphanPages.length + shortPages.length;
+    const healthScore = Math.max(0, Math.round((1 - issues / (totalPages * 3)) * 100));
+
     return {
       totalPages,
       totalLinks,
@@ -106,6 +146,10 @@ export default function StatsView({ data, onSelect }: StatsViewProps) {
       largestPages,
       linkDensity,
       orphanCount,
+      deadLinks,
+      orphanPages,
+      shortPages,
+      healthScore,
     };
   }, [data]);
 
@@ -313,14 +357,125 @@ export default function StatsView({ data, onSelect }: StatsViewProps) {
           </div>
         </div>
 
+        {/* Wiki Health */}
+        <div className="bg-bg-secondary border border-border-primary rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <HeartPulse className="w-4 h-4 text-accent-vivid" />
+            <h3 className="text-sm font-medium text-text-primary">Wiki 健康度</h3>
+          </div>
+
+          {/* Health score ring + summary */}
+          <div className="flex items-center gap-6 mb-5">
+            <div className="relative w-20 h-20 shrink-0">
+              <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--bg-tertiary)" strokeWidth="3" />
+                <circle
+                  cx="18" cy="18" r="15.5" fill="none"
+                  stroke={stats.healthScore >= 80 ? "#72b886" : stats.healthScore >= 50 ? "#c9985e" : "#d48a8a"}
+                  strokeWidth="3"
+                  strokeDasharray={`${stats.healthScore * 0.974} 100`}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-lg font-bold text-text-primary">{stats.healthScore}</span>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-4 text-xs">
+              <div className="flex items-center gap-1.5">
+                <LinkIcon className="w-3 h-3 text-accent-rose" />
+                <span className="text-text-tertiary">死链 {stats.deadLinks.length}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <FileQuestion className="w-3 h-3 text-accent-amber" />
+                <span className="text-text-tertiary">孤儿页 {stats.orphanPages.length}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="w-3 h-3 text-accent-gold" />
+                <span className="text-text-tertiary">过短页 {stats.shortPages.length}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Issue lists */}
+          <div className="space-y-4">
+            {stats.deadLinks.length > 0 && (
+              <div>
+                <h4 className="text-xs font-medium text-accent-rose mb-2 flex items-center gap-1">
+                  <LinkIcon className="w-3 h-3" /> 死链
+                </h4>
+                <div className="space-y-1">
+                  {stats.deadLinks.slice(0, 8).map((dl, i) => (
+                    <button
+                      key={`${dl.source}-${dl.target}-${i}`}
+                      onClick={() => onSelect(dl.source)}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs hover:bg-bg-hover transition-colors cursor-pointer text-left"
+                    >
+                      <span className="text-text-secondary truncate">{dl.sourceTitle}</span>
+                      <span className="text-text-tertiary shrink-0">→</span>
+                      <span className="text-accent-rose truncate">{dl.target}</span>
+                    </button>
+                  ))}
+                  {stats.deadLinks.length > 8 && (
+                    <p className="text-[10px] text-text-tertiary px-3">
+                      还有 {stats.deadLinks.length - 8} 个...
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {stats.orphanPages.length > 0 && (
+              <div>
+                <h4 className="text-xs font-medium text-accent-amber mb-2 flex items-center gap-1">
+                  <FileQuestion className="w-3 h-3" /> 孤儿页（无入链）
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {stats.orphanPages.slice(0, 12).map((op) => (
+                    <button
+                      key={op.slug}
+                      onClick={() => onSelect(op.slug)}
+                      className="px-2.5 py-1 rounded-md text-[11px] bg-accent-amber/5 text-accent-amber border border-accent-amber/15 hover:bg-accent-amber/10 transition-colors cursor-pointer"
+                    >
+                      {op.title}
+                    </button>
+                  ))}
+                  {stats.orphanPages.length > 12 && (
+                    <span className="text-[10px] text-text-tertiary self-center">
+                      +{stats.orphanPages.length - 12}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {stats.shortPages.length > 0 && (
+              <div>
+                <h4 className="text-xs font-medium text-accent-gold mb-2 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" /> 过短页面（&lt;100 字）
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {stats.shortPages.slice(0, 12).map((sp) => (
+                    <button
+                      key={sp.slug}
+                      onClick={() => onSelect(sp.slug)}
+                      className="px-2.5 py-1 rounded-md text-[11px] bg-accent-gold/5 text-accent-gold border border-accent-gold/15 hover:bg-accent-gold/10 transition-colors cursor-pointer"
+                    >
+                      {sp.title} ({sp.words}字)
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {stats.deadLinks.length === 0 && stats.orphanPages.length === 0 && stats.shortPages.length === 0 && (
+              <p className="text-xs text-accent-emerald text-center py-2">Wiki 状态良好，未发现问题</p>
+            )}
+          </div>
+        </div>
+
         {/* Footer stats */}
         <div className="text-center text-xs text-text-tertiary py-4">
-          {stats.orphanCount > 0 && (
-            <span>
-              {stats.orphanCount} 个孤立页面（无外链）
-              {" · "}
-            </span>
-          )}
           平均每页{" "}
           {Math.round(stats.totalWords / stats.totalPages)} 字{" · "}
           平均 {(stats.totalLinks / stats.totalPages).toFixed(1)} 条链接/页
