@@ -20,13 +20,13 @@ interface TreeNode {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  root: "#f59e0b",
-  concepts: "#06b6d4",
-  entities: "#8b5cf6",
-  changelog: "#10b981",
-  guides: "#3b82f6",
-  docs: "#3b82f6",
-  api: "#f43f5e",
+  root: "#d4a96a",
+  concepts: "#7ba3c4",
+  entities: "#b48ec4",
+  changelog: "#72b886",
+  guides: "#c9985e",
+  docs: "#c9985e",
+  api: "#d48a8a",
 };
 
 export default function MindMap({

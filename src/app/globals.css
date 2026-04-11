@@ -1,30 +1,32 @@
 @import "tailwindcss";
 
 :root {
-  --bg-primary: #0a0b0e;
-  --bg-secondary: #12141a;
-  --bg-tertiary: #1a1d26;
-  --bg-hover: #222633;
-  --bg-active: #2a2e3d;
+  /* Morandi-inspired dark palette — muted, grey-toned, refined */
+  --bg-primary: #161617;
+  --bg-secondary: #1c1c1e;
+  --bg-tertiary: #232326;
+  --bg-hover: #2a2a2e;
+  --bg-active: #323236;
 
-  --text-primary: #e8eaed;
-  --text-secondary: #9aa0b0;
-  --text-tertiary: #6b7280;
-  --text-link: #60a5fa;
+  --text-primary: #e5e0da;
+  --text-secondary: #9b9690;
+  --text-tertiary: #6e6963;
+  --text-link: #c2a882;
 
-  --border-primary: #1f2937;
-  --border-secondary: #374151;
+  --border-primary: #28282c;
+  --border-secondary: #38383d;
 
-  --accent-blue: #3b82f6;
-  --accent-purple: #8b5cf6;
-  --accent-cyan: #06b6d4;
-  --accent-emerald: #10b981;
-  --accent-amber: #f59e0b;
-  --accent-rose: #f43f5e;
-
-  --gradient-primary: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  --gradient-secondary: linear-gradient(135deg, #06b6d4, #3b82f6);
-  --gradient-accent: linear-gradient(135deg, #8b5cf6, #ec4899);
+  /* Morandi accents — all desaturated, grey-toned */
+  --accent-vivid: #e07a5f;
+  --accent-gold: #c2a882;
+  --accent-amber: #c4a47a;
+  --accent-warm: #b89878;
+  --accent-rose: #bf9e9e;
+  --accent-sage: #8fa898;
+  --accent-blue: #8e9aad;
+  --accent-purple: #9f90ad;
+  --accent-emerald: #7a9e88;
+  --accent-cyan: #89a5a2;
 }
 
 @theme inline {
@@ -42,12 +44,16 @@
   --color-border-primary: var(--border-primary);
   --color-border-secondary: var(--border-secondary);
 
+  --color-accent-vivid: var(--accent-vivid);
+  --color-accent-gold: var(--accent-gold);
+  --color-accent-amber: var(--accent-amber);
+  --color-accent-warm: var(--accent-warm);
+  --color-accent-rose: var(--accent-rose);
+  --color-accent-sage: var(--accent-sage);
   --color-accent-blue: var(--accent-blue);
   --color-accent-purple: var(--accent-purple);
-  --color-accent-cyan: var(--accent-cyan);
   --color-accent-emerald: var(--accent-emerald);
-  --color-accent-amber: var(--accent-amber);
-  --color-accent-rose: var(--accent-rose);
+  --color-accent-cyan: var(--accent-cyan);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -64,9 +70,9 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
-/* Markdown content styles */
+/* ─── Markdown content ─── */
 .wiki-content {
-  line-height: 1.8;
+  line-height: 1.85;
   font-size: 0.95rem;
 }
 
@@ -77,15 +83,9 @@ body {
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border-primary);
-  background: linear-gradient(135deg, var(--text-primary), var(--accent-blue));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text-primary);
 }
-
-.wiki-content h1:first-child {
-  margin-top: 0;
-}
+.wiki-content h1:first-child { margin-top: 0; }
 
 .wiki-content h2 {
   font-size: 1.5rem;
@@ -100,7 +100,7 @@ body {
   font-weight: 600;
   margin-top: 1.5rem;
   margin-bottom: 0.5rem;
-  color: var(--accent-cyan);
+  color: var(--accent-gold);
 }
 
 .wiki-content h4 {
@@ -117,15 +117,12 @@ body {
 }
 
 .wiki-content a {
-  color: var(--accent-blue);
+  color: var(--accent-gold);
   text-decoration: none;
   border-bottom: 1px solid transparent;
   transition: border-color 0.2s;
 }
-
-.wiki-content a:hover {
-  border-bottom-color: var(--accent-blue);
-}
+.wiki-content a:hover { border-bottom-color: var(--accent-gold); }
 
 .wiki-content ul, .wiki-content ol {
   margin-bottom: 1rem;
@@ -136,10 +133,7 @@ body {
   margin-bottom: 0.35rem;
   color: var(--text-secondary);
 }
-
-.wiki-content li::marker {
-  color: var(--accent-purple);
-}
+.wiki-content li::marker { color: var(--text-tertiary); }
 
 .wiki-content code {
   font-family: var(--font-mono), monospace;
@@ -148,7 +142,7 @@ body {
   border-radius: 4px;
   padding: 0.15em 0.4em;
   font-size: 0.85em;
-  color: var(--accent-cyan);
+  color: var(--accent-rose);
 }
 
 .wiki-content pre {
@@ -170,11 +164,11 @@ body {
 }
 
 .wiki-content blockquote {
-  border-left: 3px solid var(--accent-purple);
+  border-left: 2px solid var(--accent-sage);
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
-  background: var(--bg-secondary);
-  border-radius: 0 8px 8px 0;
+  background: rgba(143, 168, 152, 0.04);
+  border-radius: 0 6px 6px 0;
 }
 
 .wiki-content blockquote p {
@@ -191,9 +185,7 @@ body {
   overflow: hidden;
 }
 
-.wiki-content thead {
-  background: var(--bg-tertiary);
-}
+.wiki-content thead { background: var(--bg-tertiary); }
 
 .wiki-content th {
   padding: 0.6rem 1rem;
@@ -211,9 +203,7 @@ body {
   border-bottom: 1px solid var(--border-primary);
 }
 
-.wiki-content tr:hover td {
-  background: var(--bg-hover);
-}
+.wiki-content tr:hover td { background: var(--bg-hover); }
 
 .wiki-content hr {
   border: none;
@@ -222,54 +212,30 @@ body {
   margin: 2rem 0;
 }
 
-.wiki-content strong {
-  color: var(--text-primary);
-  font-weight: 600;
-}
+.wiki-content strong { color: var(--text-primary); font-weight: 600; }
+.wiki-content img { max-width: 100%; border-radius: 8px; }
 
-.wiki-content img {
-  max-width: 100%;
-  border-radius: 8px;
-}
+/* ─── Syntax highlighting — muted tones ─── */
+.hljs { background: transparent !important; color: var(--text-primary) !important; }
+.hljs-keyword { color: #a494b5 !important; }
+.hljs-string { color: #8fa898 !important; }
+.hljs-comment { color: #555560 !important; font-style: italic; }
+.hljs-number { color: #c2a882 !important; }
+.hljs-function .hljs-title { color: #c4b99a !important; }
+.hljs-attr { color: #bf9e9e !important; }
+.hljs-built_in { color: #8e9aad !important; }
+.hljs-type { color: #c2a882 !important; }
+.hljs-params { color: #b0aaa4 !important; }
+.hljs-meta { color: #89a5a2 !important; }
+.hljs-title { color: #c4b99a !important; }
 
-/* Highlight.js overrides for dark theme */
-.hljs {
-  background: transparent !important;
-  color: var(--text-primary) !important;
-}
-.hljs-keyword { color: #c792ea !important; }
-.hljs-string { color: #c3e88d !important; }
-.hljs-comment { color: #546e7a !important; font-style: italic; }
-.hljs-number { color: #f78c6c !important; }
-.hljs-function .hljs-title { color: #82aaff !important; }
-.hljs-attr { color: #ffcb6b !important; }
-.hljs-built_in { color: #89ddff !important; }
-.hljs-type { color: #ffcb6b !important; }
-.hljs-params { color: #d9d9d9 !important; }
-.hljs-meta { color: #82aaff !important; }
-.hljs-title { color: #82aaff !important; }
-
-/* Diagram blocks — Mermaid + ASCII art */
+/* ─── Diagram blocks ─── */
 .diagram-block {
   margin-bottom: 1.25rem;
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--border-primary);
-  background: linear-gradient(135deg, hsl(220 20% 8%), hsl(240 15% 10%));
-  position: relative;
-}
-
-.diagram-block::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 12px;
-  padding: 1px;
-  background: linear-gradient(135deg, hsl(220 80% 60% / 0.15), hsl(270 70% 60% / 0.15));
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
+  background: var(--bg-secondary);
 }
 
 .diagram-label {
@@ -281,9 +247,8 @@ body {
   font-weight: 500;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--accent-cyan);
-  border-bottom: 1px solid hsl(220 20% 15%);
-  background: hsl(220 20% 9%);
+  color: var(--text-tertiary);
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .ascii-diagram-pre {
@@ -298,58 +263,31 @@ body {
   font-family: var(--font-mono), "JetBrains Mono", monospace !important;
   font-size: 0.82rem !important;
   line-height: 1.6 !important;
-  color: var(--accent-cyan) !important;
+  color: var(--accent-sage) !important;
   background: transparent !important;
   border: none !important;
   padding: 0 !important;
-  text-shadow: 0 0 20px hsl(190 80% 50% / 0.12);
 }
 
-/* Mermaid rendered SVG */
-.mermaid-rendered {
-  display: flex;
-  justify-content: center;
-  padding: 1.5rem;
-}
+.mermaid-rendered { display: flex; justify-content: center; padding: 1.5rem; }
+.mermaid-rendered svg { max-width: 100%; height: auto; }
 
-.mermaid-rendered svg {
-  max-width: 100%;
-  height: auto;
-}
+/* ─── Graph ─── */
+.graph-node { cursor: pointer; transition: opacity 0.2s; }
+.graph-node:hover { opacity: 0.8; }
+.graph-link { stroke: var(--border-secondary); stroke-opacity: 0.4; }
+.graph-label { font-size: 11px; fill: var(--text-secondary); pointer-events: none; }
 
-/* Knowledge graph */
-.graph-node {
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-.graph-node:hover {
-  opacity: 0.8;
-}
-.graph-link {
-  stroke: var(--border-secondary);
-  stroke-opacity: 0.4;
-}
-.graph-label {
-  font-size: 11px;
-  fill: var(--text-secondary);
-  pointer-events: none;
-}
-
-/* Animations */
+/* ─── Animations ─── */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
-
-.animate-fade-in {
-  animation: fadeIn 0.4s ease-out;
-}
-
+.animate-fade-in { animation: fadeIn 0.4s ease-out; }
 .skeleton {
   background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-hover) 50%, var(--bg-tertiary) 75%);
   background-size: 200% 100%;
@@ -357,21 +295,14 @@ body {
   border-radius: 6px;
 }
 
-/* Scrollbar for sidebar */
-.sidebar-scroll::-webkit-scrollbar {
-  width: 4px;
-}
-.sidebar-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-.sidebar-scroll::-webkit-scrollbar-thumb {
-  background: var(--bg-hover);
-  border-radius: 4px;
-}
+/* ─── Scrollbar ─── */
+.sidebar-scroll::-webkit-scrollbar { width: 3px; }
+.sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 3px; }
 
-/* Reading progress bar */
+/* ─── Reading progress ─── */
 .reading-progress {
-  background: var(--gradient-primary);
+  background: var(--accent-vivid);
   height: 2px;
   position: fixed;
   top: 0;

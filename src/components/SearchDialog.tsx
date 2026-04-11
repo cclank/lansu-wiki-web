@@ -156,12 +156,12 @@ export default function SearchDialog({
               }}
               className={`w-full flex flex-col gap-1.5 px-4 py-3 text-left transition-colors cursor-pointer ${
                 idx === selectedIndex
-                  ? "bg-accent-blue/10"
+                  ? "bg-accent-vivid/10"
                   : "hover:bg-bg-hover"
               }`}
             >
               <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-accent-blue shrink-0" />
+                <FileText className="w-4 h-4 text-accent-vivid shrink-0" />
                 <span className="text-sm font-medium text-text-primary truncate">
                   {result.page.title}
                 </span>
@@ -224,7 +224,7 @@ function highlightMatch(text: string, query: string) {
   return (
     <>
       {before}
-      <span className="text-accent-blue font-medium">{match}</span>
+      <span className="text-accent-vivid font-medium">{match}</span>
       {after}
     </>
   );

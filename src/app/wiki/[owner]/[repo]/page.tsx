@@ -26,10 +26,10 @@ import Link from "next/link";
 type ViewMode = "read" | "cosmos" | "mindmap" | "stats";
 
 const VIEW_MODES: { key: ViewMode; label: string; icon: typeof BookOpen; activeClass: string }[] = [
-  { key: "read", label: "阅读", icon: BookOpen, activeClass: "bg-accent-blue/10 text-accent-blue" },
-  { key: "cosmos", label: "关系图", icon: Globe, activeClass: "bg-accent-purple/10 text-accent-purple" },
-  { key: "mindmap", label: "脑图", icon: Brain, activeClass: "bg-accent-cyan/10 text-accent-cyan" },
-  { key: "stats", label: "统计", icon: BarChart3, activeClass: "bg-accent-emerald/10 text-accent-emerald" },
+  { key: "read", label: "阅读", icon: BookOpen, activeClass: "bg-accent-vivid/10 text-accent-vivid" },
+  { key: "cosmos", label: "关系图", icon: Globe, activeClass: "bg-accent-vivid/10 text-accent-vivid" },
+  { key: "mindmap", label: "脑图", icon: Brain, activeClass: "bg-accent-vivid/10 text-accent-vivid" },
+  { key: "stats", label: "统计", icon: BarChart3, activeClass: "bg-accent-vivid/10 text-accent-vivid" },
 ];
 
 export default function WikiPage({
@@ -138,7 +138,7 @@ export default function WikiPage({
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 gap-4">
-        <Loader2 className="w-8 h-8 text-accent-blue animate-spin" />
+        <Loader2 className="w-8 h-8 text-accent-vivid animate-spin" />
         <p className="text-text-secondary text-sm">
           {"正在加载 " + owner + "/" + repo + " ..."}
         </p>
@@ -205,7 +205,7 @@ export default function WikiPage({
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div className="flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-accent-blue" />
+          <BookOpen className="w-4 h-4 text-accent-vivid" />
           <span className="text-sm font-medium text-text-primary">
             {owner}/{repo}
           </span>

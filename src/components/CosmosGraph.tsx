@@ -11,15 +11,15 @@ interface Props {
   onSelect: (slug: string) => void;
 }
 
-// Bright, saturated colors for high visibility on dark bg
+// Morandi-inspired but with more color distinction for graph readability
 const CAT_COLORS: Record<string, string> = {
-  root: "#fbbf24",
-  concepts: "#93a3ff",
-  entities: "#d8b4fe",
-  changelog: "#6ee7b7",
-  guides: "#7dd3fc",
-  docs: "#7dd3fc",
-  api: "#fda4af",
+  root: "#d4a96a",
+  concepts: "#7ba3c4",
+  entities: "#b48ec4",
+  changelog: "#72b886",
+  guides: "#c9985e",
+  docs: "#c9985e",
+  api: "#d48a8a",
 };
 
 interface SNode extends d3.SimulationNodeDatum {

@@ -17,13 +17,13 @@ interface StatsViewProps {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  root: "#f59e0b",
-  concepts: "#06b6d4",
-  entities: "#8b5cf6",
-  changelog: "#10b981",
-  guides: "#3b82f6",
-  docs: "#3b82f6",
-  api: "#f43f5e",
+  root: "#d4a96a",
+  concepts: "#7ba3c4",
+  entities: "#b48ec4",
+  changelog: "#72b886",
+  guides: "#c9985e",
+  docs: "#c9985e",
+  api: "#d48a8a",
 };
 
 export default function StatsView({ data, onSelect }: StatsViewProps) {
@@ -119,15 +119,15 @@ export default function StatsView({ data, onSelect }: StatsViewProps) {
               icon: FileText,
               label: "页面总数",
               value: stats.totalPages,
-              color: "text-accent-blue",
-              bg: "bg-accent-blue/10",
+              color: "text-accent-gold",
+              bg: "bg-accent-gold/10",
             },
             {
               icon: Link2,
               label: "链接总数",
               value: stats.totalLinks,
-              color: "text-accent-purple",
-              bg: "bg-accent-purple/10",
+              color: "text-accent-blue",
+              bg: "bg-accent-blue/10",
             },
             {
               icon: BarChart3,
@@ -136,15 +136,15 @@ export default function StatsView({ data, onSelect }: StatsViewProps) {
                 stats.totalWords > 1000
                   ? `${(stats.totalWords / 1000).toFixed(1)}K`
                   : stats.totalWords,
-              color: "text-accent-cyan",
-              bg: "bg-accent-cyan/10",
+              color: "text-accent-emerald",
+              bg: "bg-accent-emerald/10",
             },
             {
               icon: TrendingUp,
               label: "链接密度",
               value: stats.linkDensity,
-              color: "text-accent-emerald",
-              bg: "bg-accent-emerald/10",
+              color: "text-accent-purple",
+              bg: "bg-accent-gold/10",
             },
           ].map((stat) => (
             <div
@@ -168,7 +168,7 @@ export default function StatsView({ data, onSelect }: StatsViewProps) {
           {/* Category distribution */}
           <div className="bg-bg-secondary border border-border-primary rounded-xl p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Layers className="w-4 h-4 text-accent-amber" />
+              <Layers className="w-4 h-4 text-accent-gold" />
               <h3 className="text-sm font-medium text-text-primary">
                 分类分布
               </h3>
@@ -220,7 +220,7 @@ export default function StatsView({ data, onSelect }: StatsViewProps) {
                 >
                   <span
                     className={`text-xs font-mono w-5 text-center ${
-                      idx < 3 ? "text-accent-amber font-bold" : "text-text-tertiary"
+                      idx < 3 ? "text-accent-gold font-bold" : "text-text-tertiary"
                     }`}
                   >
                     {idx + 1}
@@ -234,7 +234,7 @@ export default function StatsView({ data, onSelect }: StatsViewProps) {
                   {/* Mini bar */}
                   <div className="w-16 h-1.5 bg-bg-tertiary rounded-full overflow-hidden shrink-0">
                     <div
-                      className="h-full rounded-full bg-accent-purple"
+                      className="h-full rounded-full bg-accent-gold"
                       style={{
                         width: `${
                           (page.count /
@@ -253,7 +253,7 @@ export default function StatsView({ data, onSelect }: StatsViewProps) {
           {stats.topTags.length > 0 && (
             <div className="bg-bg-secondary border border-border-primary rounded-xl p-5">
               <div className="flex items-center gap-2 mb-4">
-                <Tag className="w-4 h-4 text-accent-cyan" />
+                <Tag className="w-4 h-4 text-accent-gold" />
                 <h3 className="text-sm font-medium text-text-primary">
                   标签云
                 </h3>
@@ -265,10 +265,10 @@ export default function StatsView({ data, onSelect }: StatsViewProps) {
                   return (
                     <span
                       key={tag}
-                      className="px-3 py-1.5 rounded-lg border border-accent-cyan/20 text-sm transition-transform hover:scale-105 cursor-default"
+                      className="px-3 py-1.5 rounded-lg border border-accent-gold/20 text-sm transition-transform hover:scale-105 cursor-default"
                       style={{
-                        background: `rgba(6, 182, 212, ${intensity * 0.12})`,
-                        color: `rgba(6, 182, 212, ${0.5 + intensity * 0.5})`,
+                        background: `rgba(194, 168, 130, ${intensity * 0.1})`,
+                        color: `rgba(194, 168, 130, ${0.5 + intensity * 0.5})`,
                         fontSize: `${11 + (count / maxCount) * 5}px`,
                       }}
                     >

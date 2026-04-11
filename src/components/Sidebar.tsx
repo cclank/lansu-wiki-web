@@ -27,12 +27,12 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  root: "text-accent-amber",
-  concepts: "text-accent-cyan",
+  root: "text-accent-gold",
+  concepts: "text-accent-blue",
   entities: "text-accent-purple",
   changelog: "text-accent-emerald",
-  guides: "text-accent-blue",
-  docs: "text-accent-blue",
+  guides: "text-accent-amber",
+  docs: "text-accent-amber",
   api: "text-accent-rose",
 };
 
@@ -91,7 +91,7 @@ export default function Sidebar({
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder="筛选页面..."
-            className="w-full bg-bg-tertiary border border-border-primary rounded-lg pl-8 pr-3 py-1.5 text-sm text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent-blue/50 transition-colors"
+            className="w-full bg-bg-tertiary border border-border-primary rounded-lg pl-8 pr-3 py-1.5 text-sm text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent-gold/30 transition-colors"
           />
         </div>
       </div>
@@ -131,7 +131,7 @@ export default function Sidebar({
                         onClick={() => onSelect(page.slug)}
                         className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm transition-colors text-left cursor-pointer ${
                           isActive
-                            ? "bg-accent-blue/10 text-accent-blue border border-accent-blue/20"
+                            ? "bg-accent-vivid/8 text-accent-vivid border border-accent-vivid/15"
                             : "text-text-tertiary hover:text-text-secondary hover:bg-bg-hover border border-transparent"
                         }`}
                       >
