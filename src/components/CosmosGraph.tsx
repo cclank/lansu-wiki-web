@@ -45,6 +45,10 @@ function rectsOverlap(a: LabelRect, b: LabelRect): boolean {
   return !(a.x + a.w < b.x || b.x + b.w < a.x || a.y + a.h < b.y || b.y + b.h < a.y);
 }
 
+function isLightTheme(): boolean {
+  return document.documentElement.getAttribute("data-theme") === "light";
+}
+
 export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -95,6 +99,8 @@ export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Pr
       });
     }
 
+    const light = isLightTheme();
+
     // --- Links ---
     sLinks.forEach((l, i) => {
       const s = l.source as SNode;
@@ -105,10 +111,12 @@ export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Pr
       ctx.moveTo(s.x, s.y!);
       ctx.lineTo(tg.x, tg.y!);
       if (lit) {
-        ctx.strokeStyle = "rgba(180, 200, 220, 0.9)";
+        ctx.strokeStyle = light ? "rgba(60, 50, 40, 0.7)" : "rgba(180, 200, 220, 0.9)";
         ctx.lineWidth = 2.5 / t.k;
       } else {
-        ctx.strokeStyle = hl ? "rgba(80, 95, 115, 0.08)" : "rgba(140, 160, 185, 0.4)";
+        ctx.strokeStyle = hl
+          ? (light ? "rgba(60, 50, 40, 0.06)" : "rgba(80, 95, 115, 0.08)")
+          : (light ? "rgba(60, 50, 40, 0.25)" : "rgba(140, 160, 185, 0.4)");
         ctx.lineWidth = 1.2 / t.k;
       }
       ctx.stroke();
@@ -163,7 +171,7 @@ export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Pr
       if (isActive) {
         ctx.beginPath();
         ctx.arc(n.x, n.y, r + 3 / t.k, 0, Math.PI * 2);
-        ctx.strokeStyle = "#ffffffdd";
+        ctx.strokeStyle = light ? "#2c2825dd" : "#ffffffdd";
         ctx.lineWidth = 2 / t.k;
         ctx.stroke();
       }
@@ -224,21 +232,19 @@ export default function ObsidianGraph({ nodes, links, activeSlug, onSelect }: Pr
 
       placedLabels.push(labelRect);
 
-      // Text bg pill — slightly lighter than page bg for pill to "pop"
+      // Text bg pill
       if (!dim) {
-        ctx.fillStyle = "rgba(20, 24, 36, 0.92)";
+        ctx.fillStyle = light ? "rgba(245, 240, 235, 0.92)" : "rgba(20, 24, 36, 0.92)";
         ctx.beginPath();
         ctx.roundRect(labelRect.x, labelRect.y, labelRect.w, labelRect.h, 4 / t.k);
         ctx.fill();
-        // Category-colored border on pill
         ctx.strokeStyle = color + "50";
         ctx.lineWidth = 1 / t.k;
         ctx.stroke();
       }
 
-      // Use category color for text — these are inherently bright
-      ctx.fillStyle = dim ? "rgba(148, 163, 184, 0.06)" :
-                       (isHover || isActive) ? "#ffffff" : color;
+      ctx.fillStyle = dim ? (light ? "rgba(60, 50, 40, 0.06)" : "rgba(148, 163, 184, 0.06)") :
+                       (isHover || isActive) ? (light ? "#2c2825" : "#ffffff") : color;
       ctx.fillText(label, n.x, ly);
     });
 

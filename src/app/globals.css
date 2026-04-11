@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
+/* ─── Dark mode (default) ─── */
 :root {
-  /* Morandi-inspired dark palette — muted, grey-toned, refined */
   --bg-primary: #161617;
   --bg-secondary: #1c1c1e;
   --bg-tertiary: #232326;
@@ -11,12 +11,11 @@
   --text-primary: #e5e0da;
   --text-secondary: #9b9690;
   --text-tertiary: #6e6963;
-  --text-link: #c2a882;
+  --text-link: #e07a5f;
 
   --border-primary: #28282c;
   --border-secondary: #38383d;
 
-  /* Morandi accents — all desaturated, grey-toned */
   --accent-vivid: #e07a5f;
   --accent-gold: #c2a882;
   --accent-amber: #c4a47a;
@@ -27,6 +26,38 @@
   --accent-purple: #9f90ad;
   --accent-emerald: #7a9e88;
   --accent-cyan: #89a5a2;
+
+  color-scheme: dark;
+}
+
+/* ─── Light mode ─── */
+[data-theme="light"] {
+  --bg-primary: #f5f0eb;
+  --bg-secondary: #ece7e1;
+  --bg-tertiary: #e3ded8;
+  --bg-hover: #dbd5ce;
+  --bg-active: #d1cbc4;
+
+  --text-primary: #2c2825;
+  --text-secondary: #5c5550;
+  --text-tertiary: #8a837c;
+  --text-link: #c5553d;
+
+  --border-primary: #ddd7d0;
+  --border-secondary: #ccc5bd;
+
+  --accent-vivid: #d0614a;
+  --accent-gold: #a08560;
+  --accent-amber: #a58858;
+  --accent-warm: #997a52;
+  --accent-rose: #a07878;
+  --accent-sage: #6a8a72;
+  --accent-blue: #6a7e96;
+  --accent-purple: #7e6e96;
+  --accent-emerald: #5a8868;
+  --accent-cyan: #6a8a88;
+
+  color-scheme: light;
 }
 
 @theme inline {
@@ -68,6 +99,7 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-sans), system-ui, sans-serif;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 /* ─── Markdown content ─── */
@@ -100,7 +132,7 @@ body {
   font-weight: 600;
   margin-top: 1.5rem;
   margin-bottom: 0.5rem;
-  color: var(--accent-gold);
+  color: var(--text-link);
 }
 
 .wiki-content h4 {
@@ -117,12 +149,11 @@ body {
 }
 
 .wiki-content a {
-  color: var(--accent-gold);
+  color: var(--text-link);
   text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.2s;
+  transition: opacity 0.2s;
 }
-.wiki-content a:hover { border-bottom-color: var(--accent-gold); }
+.wiki-content a:hover { opacity: 0.8; }
 
 .wiki-content ul, .wiki-content ol {
   margin-bottom: 1rem;
@@ -167,7 +198,7 @@ body {
   border-left: 2px solid var(--accent-sage);
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
-  background: rgba(143, 168, 152, 0.04);
+  background: color-mix(in srgb, var(--accent-sage) 5%, transparent);
   border-radius: 0 6px 6px 0;
 }
 
@@ -215,7 +246,7 @@ body {
 .wiki-content strong { color: var(--text-primary); font-weight: 600; }
 .wiki-content img { max-width: 100%; border-radius: 8px; }
 
-/* ─── Syntax highlighting — muted tones ─── */
+/* ─── Syntax highlighting — dark mode ─── */
 .hljs { background: transparent !important; color: var(--text-primary) !important; }
 .hljs-keyword { color: #a494b5 !important; }
 .hljs-string { color: #8fa898 !important; }
@@ -228,6 +259,19 @@ body {
 .hljs-params { color: #b0aaa4 !important; }
 .hljs-meta { color: #89a5a2 !important; }
 .hljs-title { color: #c4b99a !important; }
+
+/* ─── Syntax highlighting — light mode ─── */
+[data-theme="light"] .hljs-keyword { color: #7b5e99 !important; }
+[data-theme="light"] .hljs-string { color: #4a7a58 !important; }
+[data-theme="light"] .hljs-comment { color: #9a9490 !important; font-style: italic; }
+[data-theme="light"] .hljs-number { color: #a07040 !important; }
+[data-theme="light"] .hljs-function .hljs-title { color: #8a7a50 !important; }
+[data-theme="light"] .hljs-attr { color: #a06868 !important; }
+[data-theme="light"] .hljs-built_in { color: #506a88 !important; }
+[data-theme="light"] .hljs-type { color: #a07040 !important; }
+[data-theme="light"] .hljs-params { color: #5c5550 !important; }
+[data-theme="light"] .hljs-meta { color: #4a7a78 !important; }
+[data-theme="light"] .hljs-title { color: #8a7a50 !important; }
 
 /* ─── Diagram blocks ─── */
 .diagram-block {

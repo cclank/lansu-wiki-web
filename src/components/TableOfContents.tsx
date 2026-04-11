@@ -17,6 +17,7 @@ function extractHeadings(markdown: string): TocItem[] {
   const headings: TocItem[] = [];
   const lines = markdown.split("\n");
   let inCodeBlock = false;
+  const idCount = new Map<string, number>();
 
   for (const line of lines) {
     if (line.trim().startsWith("```")) {
@@ -29,10 +30,13 @@ function extractHeadings(markdown: string): TocItem[] {
     if (match) {
       const level = match[1].length;
       const text = match[2].replace(/[`*_~]/g, "").trim();
-      const id = text
+      let id = text
         .toLowerCase()
         .replace(/[^\w\s\u4e00-\u9fff-]/g, "")
         .replace(/\s+/g, "-");
+      const count = idCount.get(id) || 0;
+      idCount.set(id, count + 1);
+      if (count > 0) id = `${id}-${count}`;
       headings.push({ id, text, level });
     }
   }

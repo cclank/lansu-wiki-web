@@ -29,6 +29,10 @@ const CATEGORY_COLORS: Record<string, string> = {
   api: "#d48a8a",
 };
 
+function isLightTheme(): boolean {
+  return document.documentElement.getAttribute("data-theme") === "light";
+}
+
 export default function MindMap({
   nodes,
   links,
@@ -190,7 +194,7 @@ export default function MindMap({
       .append("circle")
       .attr("r", (d) => (d.depth === 0 ? 14 : 8 - d.depth))
       .attr("fill", (d) => CATEGORY_COLORS[d.data.category] || "#3b82f6")
-      .attr("stroke", (d) => (d.data.id === activeSlug ? "#fff" : "transparent"))
+      .attr("stroke", (d) => (d.data.id === activeSlug ? (light ? "#2c2825" : "#fff") : "transparent"))
       .attr("stroke-width", 2)
       .attr("opacity", 0)
       .transition()
@@ -220,13 +224,15 @@ export default function MindMap({
           .on("end", pulse);
       });
 
+    const light = isLightTheme();
+
     // Labels
     nodeGroup
       .append("text")
       .attr("dy", (d) => (d.depth === 0 ? -22 : -14))
       .attr("text-anchor", "middle")
       .attr("font-size", (d) => (d.depth === 0 ? "13px" : `${12 - d.depth}px`))
-      .attr("fill", (d) => (d.depth === 0 ? "#e8eaed" : "#9aa0b0"))
+      .attr("fill", (d) => (d.depth === 0 ? (light ? "#2c2825" : "#e8eaed") : (light ? "#5c5550" : "#9aa0b0")))
       .attr("font-weight", (d) => (d.depth === 0 ? "600" : "400"))
       .text((d) => {
         const t = d.data.title;

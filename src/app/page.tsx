@@ -2,8 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, GitBranch } from "lucide-react";
+import { ArrowRight, GitBranch, FolderOpen } from "lucide-react";
 import { parseGitHubUrl } from "@/lib/github";
+import ThemeToggle from "@/components/ThemeToggle";
+
+function isLocalPath(input: string): boolean {
+  const trimmed = input.trim();
+  return (
+    trimmed.startsWith("/") ||
+    trimmed.startsWith("~/") ||
+    trimmed.startsWith("./") ||
+    trimmed.startsWith("../")
+  );
+}
 
 const EXAMPLES = [
   { label: "Hermes Wiki", url: "cclank/Hermes-Wiki" },
@@ -17,9 +28,19 @@ export default function Home() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const parsed = parseGitHubUrl(url);
+    const trimmed = url.trim();
+
+    // Local path
+    if (isLocalPath(trimmed)) {
+      setError("");
+      router.push(`/wiki/local?path=${encodeURIComponent(trimmed)}`);
+      return;
+    }
+
+    // GitHub repo
+    const parsed = parseGitHubUrl(trimmed);
     if (!parsed) {
-      setError("请输入有效的 GitHub 仓库地址，如 owner/repo");
+      setError("请输入 GitHub 仓库地址（owner/repo）或本地路径（/path/to/wiki）");
       return;
     }
     setError("");
@@ -33,6 +54,11 @@ export default function Home() {
 
   return (
     <div className="flex flex-col flex-1 items-center justify-center relative">
+      {/* Theme toggle */}
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle />
+      </div>
+
       {/* Subtle Morandi glow */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(194,168,130,0.03)_0%,transparent_70%)]" />
@@ -48,7 +74,7 @@ export default function Home() {
             WikiView
           </h1>
           <p className="text-sm text-text-tertiary leading-relaxed">
-            将 GitHub Wiki 仓库转化为可视化阅读体验
+            将 GitHub 仓库或本地目录转化为可视化阅读体验
           </p>
         </div>
 
@@ -60,7 +86,7 @@ export default function Home() {
               type="text"
               value={url}
               onChange={(e) => { setUrl(e.target.value); setError(""); }}
-              placeholder="owner/repo"
+              placeholder="owner/repo 或 /本地路径"
               className="flex-1 bg-transparent px-3 py-3.5 text-text-primary placeholder:text-text-tertiary outline-none text-sm"
             />
             <button

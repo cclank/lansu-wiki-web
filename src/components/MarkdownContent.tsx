@@ -85,13 +85,14 @@ export default function MarkdownContent({
   );
 
   const components: Components = {
+    script: () => null,
     a: ({ href, children }) => {
       if (href?.startsWith("#wiki:")) {
         const targetSlug = href.replace("#wiki:", "");
         return (
           <button
             onClick={() => onNavigate(targetSlug)}
-            className="text-accent-blue hover:text-accent-cyan transition-colors border-b border-accent-blue/30 hover:border-accent-cyan cursor-pointer bg-transparent p-0 font-inherit text-inherit inline"
+            className="text-text-link hover:brightness-125 transition-colors cursor-pointer bg-transparent p-0 inline"
           >
             {children}
           </button>
@@ -110,7 +111,7 @@ export default function MarkdownContent({
           return (
             <button
               onClick={() => onNavigate(slug)}
-              className="text-accent-blue hover:text-accent-cyan transition-colors border-b border-accent-blue/30 hover:border-accent-cyan cursor-pointer bg-transparent p-0 font-inherit text-inherit inline"
+              className="text-text-link hover:brightness-125 transition-colors cursor-pointer bg-transparent p-0 inline"
             >
               {children}
             </button>
@@ -238,7 +239,7 @@ export default function MarkdownContent({
             {"相关页面 (" + page.links.length + ")"}
           </h4>
           <div className="flex flex-wrap gap-2">
-            {page.links.map((link) => {
+            {[...new Set(page.links)].map((link) => {
               const targetSlug = slugByName.get(link);
               return (
                 <button
