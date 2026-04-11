@@ -332,6 +332,44 @@ body {
   100% { background-position: 200% 0; }
 }
 .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+
+/* Icon shine sweep */
+@keyframes shine-sweep {
+  0% { left: -100%; }
+  100% { left: 200%; }
+}
+.icon-shine {
+  position: relative;
+  overflow: hidden;
+}
+.icon-shine::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -100%;
+  width: 60%;
+  height: calc(100% + 4px);
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255,255,255,0.15) 40%,
+    rgba(255,255,255,0.3) 50%,
+    rgba(255,255,255,0.15) 60%,
+    transparent 100%
+  );
+  animation: shine-sweep 3s ease-in-out infinite;
+  pointer-events: none;
+}
+[data-theme="light"] .icon-shine::after {
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255,255,255,0.4) 40%,
+    rgba(255,255,255,0.7) 50%,
+    rgba(255,255,255,0.4) 60%,
+    transparent 100%
+  );
+}
 .skeleton {
   background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-hover) 50%, var(--bg-tertiary) 75%);
   background-size: 200% 100%;
