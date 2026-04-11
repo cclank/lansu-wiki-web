@@ -296,8 +296,10 @@ export default function WikiViewer({ data, loading, error, label, owner, repo }:
             <MindMap
               nodes={data.graph.nodes}
               links={data.graph.links}
+              pages={data.pages}
               activeSlug={activeSlug}
               onSelect={handleGraphSelect}
+              onNavigate={handleNavigate}
             />
           </div>
         )}
