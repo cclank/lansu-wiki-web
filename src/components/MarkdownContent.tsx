@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
+import { Check, Copy } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -10,21 +11,33 @@ import type { WikiPage } from "@/lib/github";
 import type { Components } from "react-markdown";
 import MermaidBlock from "./MermaidBlock";
 
-function CopyButton({ code }: { code: string }) {
+function CodeCopyButton({ preRef }: { preRef: React.RefObject<HTMLDivElement | null> }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(code).then(() => {
+    const text = preRef.current?.querySelector("code")?.textContent || "";
+    navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
-  }, [code]);
+  }, [preRef]);
   return (
     <button
       onClick={handleCopy}
-      className="absolute top-2 right-2 px-2 py-1 rounded-md text-[11px] bg-bg-tertiary/80 text-text-tertiary hover:text-text-primary border border-border-primary opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer backdrop-blur-sm"
+      className="absolute top-2 right-2 p-1.5 rounded-md bg-bg-tertiary/80 text-text-tertiary hover:text-text-primary border border-border-primary opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer backdrop-blur-sm"
+      title="复制代码"
     >
-      {copied ? "已复制" : "复制"}
+      {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
     </button>
+  );
+}
+
+function CodeBlock({ children, className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+  const ref = useRef<HTMLDivElement>(null);
+  return (
+    <div className={`relative group ${className || ""}`} ref={ref} {...props}>
+      <CodeCopyButton preRef={ref} />
+      {children}
+    </div>
   );
 }
 
@@ -182,7 +195,7 @@ export default function MarkdownContent({
         isAsciiDiagram(code)
       ) {
         return (
-          <div className="diagram-block ascii-diagram group relative">
+          <CodeBlock className="diagram-block ascii-diagram">
             <div className="diagram-label">
               <svg
                 width="14"
@@ -197,20 +210,14 @@ export default function MarkdownContent({
               </svg>
               Architecture Diagram
             </div>
-            {code && <CopyButton code={code} />}
             <pre className="ascii-diagram-pre">
               <code>{code}</code>
             </pre>
-          </div>
+          </CodeBlock>
         );
       }
 
-      return (
-        <div className="relative group">
-          {code && <CopyButton code={code} />}
-          <pre {...props}>{children}</pre>
-        </div>
-      );
+      return <CodeBlock><pre {...props}>{children}</pre></CodeBlock>;
     },
   };
 
