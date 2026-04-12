@@ -11,11 +11,29 @@ import type { WikiPage } from "@/lib/github";
 import type { Components } from "react-markdown";
 import MermaidBlock from "./MermaidBlock";
 
+function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  }
+  return fallbackCopy(text);
+}
+
+function fallbackCopy(text: string): Promise<void> {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.cssText = "position:fixed;left:-9999px";
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand("copy");
+  document.body.removeChild(ta);
+  return Promise.resolve();
+}
+
 function CodeCopyButton({ preRef }: { preRef: React.RefObject<HTMLDivElement | null> }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = useCallback(() => {
     const text = preRef.current?.querySelector("code")?.textContent || "";
-    navigator.clipboard.writeText(text).then(() => {
+    copyToClipboard(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
