@@ -55,9 +55,14 @@ export default function WikiViewer({ data, loading, error, label, owner, repo }:
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
 
-  // Set initial active slug when data loads
+  // Set initial active slug when data loads (respect URL hash)
   useEffect(() => {
     if (!data) return;
+    const hash = window.location.hash.replace(/^#/, "");
+    if (hash && data.pages.some((p) => p.slug === hash)) {
+      setActiveSlug(hash);
+      return;
+    }
     const readmePage = data.pages.find(
       (p) =>
         p.path.toLowerCase() === "readme.md" ||
@@ -136,10 +141,12 @@ export default function WikiViewer({ data, loading, error, label, owner, repo }:
     setViewMode("read");
     setSidebarOpen(false);
     document.getElementById("wiki-content-area")?.scrollTo(0, 0);
+    history.replaceState(null, "", `#${slug}`);
   }, []);
 
   const handleGraphSelect = useCallback((slug: string) => {
     setActiveSlug(slug);
+    history.replaceState(null, "", `#${slug}`);
   }, []);
 
   if (loading) {

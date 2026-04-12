@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -8,6 +9,24 @@ import rehypeSlug from "rehype-slug";
 import type { WikiPage } from "@/lib/github";
 import type { Components } from "react-markdown";
 import MermaidBlock from "./MermaidBlock";
+
+function CopyButton({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [code]);
+  return (
+    <button
+      onClick={handleCopy}
+      className="absolute top-2 right-2 px-2 py-1 rounded-md text-[11px] bg-bg-tertiary/80 text-text-tertiary hover:text-text-primary border border-border-primary opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer backdrop-blur-sm"
+    >
+      {copied ? "已复制" : "复制"}
+    </button>
+  );
+}
 
 interface MarkdownContentProps {
   page: WikiPage;
@@ -143,51 +162,55 @@ export default function MarkdownContent({
         className?: string;
         children?: string;
       }>;
-      if (codeChild?.props) {
-        const className = codeChild.props.className || "";
-        const code =
-          typeof codeChild.props.children === "string"
-            ? codeChild.props.children
-            : "";
+      const className = codeChild?.props?.className || "";
+      const code =
+        typeof codeChild?.props?.children === "string"
+          ? codeChild.props.children
+          : "";
 
-        // Mermaid block
-        if (className.includes("language-mermaid")) {
-          return <MermaidBlock code={code} />;
-        }
-
-        // ASCII diagram detection for text/plain blocks
-        if (
-          (className.includes("language-text") ||
-            className === "" ||
-            !className) &&
-          code &&
-          isAsciiDiagram(code)
-        ) {
-          return (
-            <div className="diagram-block ascii-diagram">
-              <div className="diagram-label">
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-                </svg>
-                Architecture Diagram
-              </div>
-              <pre className="ascii-diagram-pre">
-                <code>{code}</code>
-              </pre>
-            </div>
-          );
-        }
+      // Mermaid block
+      if (className.includes("language-mermaid")) {
+        return <MermaidBlock code={code} />;
       }
 
-      return <pre {...props}>{children}</pre>;
+      // ASCII diagram detection for text/plain blocks
+      if (
+        (className.includes("language-text") ||
+          className === "" ||
+          !className) &&
+        code &&
+        isAsciiDiagram(code)
+      ) {
+        return (
+          <div className="diagram-block ascii-diagram group relative">
+            <div className="diagram-label">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+              </svg>
+              Architecture Diagram
+            </div>
+            {code && <CopyButton code={code} />}
+            <pre className="ascii-diagram-pre">
+              <code>{code}</code>
+            </pre>
+          </div>
+        );
+      }
+
+      return (
+        <div className="relative group">
+          {code && <CopyButton code={code} />}
+          <pre {...props}>{children}</pre>
+        </div>
+      );
     },
   };
 
