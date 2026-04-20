@@ -8,9 +8,9 @@
   --bg-hover: #2a2a2e;
   --bg-active: #323236;
 
-  --text-primary: #e5e0da;
-  --text-secondary: #9b9690;
-  --text-tertiary: #6e6963;
+  --text-primary: #eae5df;
+  --text-secondary: #c0bab3;
+  --text-tertiary: #7d776f;
   --text-link: #e07a5f;
 
   --border-primary: #28282c;
@@ -38,9 +38,9 @@
   --bg-hover: #dbd5ce;
   --bg-active: #d1cbc4;
 
-  --text-primary: #2c2825;
-  --text-secondary: #5c5550;
-  --text-tertiary: #8a837c;
+  --text-primary: #1a1714;
+  --text-secondary: #3a3530;
+  --text-tertiary: #6e675f;
   --text-link: #c5553d;
 
   --border-primary: #ddd7d0;
@@ -263,7 +263,7 @@ body {
 /* ─── Syntax highlighting — light mode ─── */
 [data-theme="light"] .hljs-keyword { color: #7b5e99 !important; }
 [data-theme="light"] .hljs-string { color: #4a7a58 !important; }
-[data-theme="light"] .hljs-comment { color: #9a9490 !important; font-style: italic; }
+[data-theme="light"] .hljs-comment { color: #7a7470 !important; font-style: italic; }
 [data-theme="light"] .hljs-number { color: #a07040 !important; }
 [data-theme="light"] .hljs-function .hljs-title { color: #8a7a50 !important; }
 [data-theme="light"] .hljs-attr { color: #a06868 !important; }
